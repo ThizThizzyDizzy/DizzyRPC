@@ -1,0 +1,68 @@
+﻿using UdonSharp;
+using VRC.SDKBase;
+using VRRefAssist;
+
+namespace DizzyRPC
+{
+    [Singleton]
+    [UdonBehaviourSyncMode(BehaviourSyncMode.None)]
+    public class RPCManager : UdonSharpBehaviour
+    {
+        public int[] playerIds = new int[1024];
+        public RPCChannel[] channels = new RPCChannel[1024];
+        public bool[] cached = new bool[1024];
+
+        public void Send(VRCPlayerApi target, int id, params object[] parameters)
+        {
+            if (target == null)
+            {
+                foreach (var player in VRCPlayerApi.GetPlayers(new VRCPlayerApi[VRCPlayerApi.GetPlayerCount()]))
+                {
+                    foreach (var playerObject in Networking.GetPlayerObjects(player))
+                    {
+                        if (!Utilities.IsValid(playerObject)) continue;
+                        var chan = playerObject.GetComponentInChildren<RPCChannel>();
+                        if (!Utilities.IsValid(chan)) continue;
+                        chan.Send(id, parameters);
+                    }
+                }
+
+                return;
+            }
+
+            RPCChannel channel = null;
+            bool found = false;
+            for (int i = 0; i < cached.Length; i++)
+            {
+                if (!cached[i]) continue;
+                if (playerIds[i] == target.playerId)
+                {
+                    channel = channels[i];
+                    found = true;
+                    break;
+                }
+            }
+
+            if (!found)
+            {
+                foreach (var playerObject in Networking.GetPlayerObjects(target))
+                {
+                    if (!Utilities.IsValid(playerObject)) continue;
+                    channel = playerObject.GetComponentInChildren<RPCChannel>();
+                    if (!Utilities.IsValid(channel)) continue;
+                    break;
+                }
+
+                for (int i = 0; i < cached.Length; i++)
+                {
+                    if (cached[i]) continue;
+                    playerIds[i] = target.playerId;
+                    channels[i] = channel;
+                    cached[i] = true;
+                }
+            }
+
+            channel.Send(id, parameters);
+        }
+    }
+}
