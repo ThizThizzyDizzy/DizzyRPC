@@ -10,10 +10,10 @@ namespace DizzyRPC.Examples
     {
         public bool Enabled = true;
 
-        [RPCHook(typeof(SingletonRPCExample), nameof(SingletonRPCExample.ExampleWithParameters))]
+        [RPCHook(typeof(SingletonRPCExample), nameof(SingletonRPCExample._ExampleWithParameters))]
         public bool CheckMethod(int parameter)
         {
-            return !Enabled || parameter == 42;
+            return !Enabled || parameter == 2;
         }
     }
 }

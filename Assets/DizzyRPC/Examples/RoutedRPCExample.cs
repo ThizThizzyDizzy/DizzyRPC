@@ -2,7 +2,6 @@ using System;
 using DizzyRPC.Attribute;
 using UdonSharp;
 using UnityEngine;
-using VRC.SDK3.UdonNetworkCalling;
 using VRC.SDKBase;
 
 namespace DizzyRPC.Examples
@@ -11,22 +10,31 @@ namespace DizzyRPC.Examples
     [UdonBehaviourSyncMode(BehaviourSyncMode.None)]
     public class RoutedRPCExample : UdonSharpBehaviour
     {
-        [RPCMethod]
-        [NetworkCallable]
-        public void SomeRPC(string message)
+        [RPCMethod(mode:RPCSyncMode.Event)]
+        public void _SomeRPC(string message)
         {
-            Debug.Log($"[DizzyRPC] {gameObject.name}: Received {message}");
+            // Debug.Log($"[DizzyRPC] {gameObject.name}: Received {message}");
         }
 
+        private int seconds = 0;
         private void Update()
         {
-            _Send_SomeRPC(null, $"Testing from {gameObject.name}");
+            if ((int)Time.time > seconds|| Input.GetKey(KeyCode.R))
+            {
+                seconds = (int)Time.time;
+                _Send_SomeRPC(null, $"Testing from {gameObject.name}");
+            }
+
+            if (Input.GetKey(KeyCode.R))
+            {
+                _Send_SomeRPC(null, $"RoutedRPC, Stress test! Here's some incoherent screaming: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
+            }
         }
         #region Generated RPCs (DO NOT EDIT)
-        [UnityEngine.SerializeField] private DizzyRPC.RPCManager _rpc_manager;
-        [UnityEngine.SerializeField] private DizzyRPC.Examples.RPCRouterExample _rpc_router;
+        [SerializeField] private RPCManager _rpc_manager;
+        [SerializeField] private RPCRouterExample _rpc_router;
         
-        public void _Send_SomeRPC(VRC.SDKBase.VRCPlayerApi target, System.String message) => _rpc_manager.Send(target, DizzyRPC.RPCChannel.RPC_RoutedRPCExample_SomeRPC, _rpc_router._GetId(this), message);
+        public void _Send_SomeRPC(VRCPlayerApi target, String message) => _rpc_manager.SendEvent(target, RPCChannel.RPC_RoutedRPCExample__SomeRPC, _rpc_router._GetId(this), message);
         #endregion
     }
 }

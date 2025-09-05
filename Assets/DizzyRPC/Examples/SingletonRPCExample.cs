@@ -2,7 +2,6 @@ using System;
 using DizzyRPC.Attribute;
 using UdonSharp;
 using UnityEngine;
-using VRC.SDK3.UdonNetworkCalling;
 using VRC.SDKBase;
 using VRRefAssist;
 
@@ -10,39 +9,52 @@ namespace DizzyRPC.Examples
 {
     [Singleton]
     [GenerateRPCs]
+    [UdonBehaviourSyncMode(BehaviourSyncMode.None)]
     public class SingletonRPCExample : UdonSharpBehaviour
     {
-        [RPCMethod]
-        [NetworkCallable]
-        public void Example()
+        [RPCMethod(mode:RPCSyncMode.Event)]
+        public void _Example()
         {
-            Debug.Log("[DizzyRPC] Singleton RPC Example - Hello, world!");
+            // Debug.Log("[DizzyRPC] Singleton RPC Example - Hello, world!");
         }
 
-        [RPCMethod]
-        [NetworkCallable]
-        public void ExampleWithParameters(int parameter)
+        [RPCMethod(mode:RPCSyncMode.Event)]
+        public void _ExampleWithParameters(int parameter)
         {
-            Debug.Log($"[DizzyRPC] Singleton RPC Example - Hello, world! - {parameter}");
+            // Debug.Log($"[DizzyRPC] Singleton RPC Example - Hello, world! - {parameter}");
         }
 
+        [RPCMethod(mode: RPCSyncMode.Variable)]
+        public void _ExampleVariableRPC(int parameter)
+        {
+            Debug.Log($"[DizzyRPC] Variable RPC Example - Hello, world! - {parameter}");
+        }
+
+        private int seconds = 0;
         private int i = 0;
 
         private void Update()
         {
-            _Send_ExampleWithParameters(null, i++);
-            if (i > 100)
+            if ((int)Time.time > seconds || Input.GetKey(KeyCode.T))
             {
-                i = 0;
+                seconds = (int)Time.time;
+                _Send_ExampleWithParameters(null, i++);
                 _Send_Example(null);
+                if (i > 4)
+                {
+                    i = 0;
+                }
             }
+
+            if (Input.GetKey(KeyCode.V)) _Send_ExampleVariableRPC(null, seconds);
         }
 
         #region Generated RPCs (DO NOT EDIT)
-        [UnityEngine.SerializeField] private DizzyRPC.RPCManager _rpc_manager;
+        [SerializeField] private RPCManager _rpc_manager;
         
-        public void _Send_Example(VRC.SDKBase.VRCPlayerApi target) => _rpc_manager.Send(target, DizzyRPC.RPCChannel.RPC_SingletonRPCExample_Example);
-        public void _Send_ExampleWithParameters(VRC.SDKBase.VRCPlayerApi target, System.Int32 parameter) => _rpc_manager.Send(target, DizzyRPC.RPCChannel.RPC_SingletonRPCExample_ExampleWithParameters, parameter);
+        public void _Send_Example(VRCPlayerApi target) => _rpc_manager.SendEvent(target, RPCChannel.RPC_SingletonRPCExample__Example);
+        public void _Send_ExampleWithParameters(VRCPlayerApi target, Int32 parameter) => _rpc_manager.SendEvent(target, RPCChannel.RPC_SingletonRPCExample__ExampleWithParameters, parameter);
+        public void _Send_ExampleVariableRPC(VRCPlayerApi target, Int32 parameter) => _rpc_manager.SendVariable(target, RPCChannel.RPC_SingletonRPCExample__ExampleVariableRPC, parameter);
         #endregion
     }
 }

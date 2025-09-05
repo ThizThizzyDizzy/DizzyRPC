@@ -12,7 +12,7 @@ namespace DizzyRPC
         public RPCChannel[] channels = new RPCChannel[1024];
         public bool[] cached = new bool[1024];
 
-        public void Send(VRCPlayerApi target, int id, params object[] parameters)
+        public void SendEvent(VRCPlayerApi target, int id, params object[] parameters)
         {
             if (target == null)
             {
@@ -23,7 +23,7 @@ namespace DizzyRPC
                         if (!Utilities.IsValid(playerObject)) continue;
                         var chan = playerObject.GetComponentInChildren<RPCChannel>();
                         if (!Utilities.IsValid(chan)) continue;
-                        chan.Send(id, parameters);
+                        chan.SendEvent(id, parameters);
                     }
                 }
 
@@ -62,7 +62,17 @@ namespace DizzyRPC
                 }
             }
 
-            channel.Send(id, parameters);
+            channel.SendEvent(id, parameters);
+        }
+        public void SendVariable(VRCPlayerApi target, int id, params object[] parameters)
+        {
+            foreach (var playerObject in Networking.LocalPlayer.GetPlayerObjects())
+            {
+                if (!Utilities.IsValid(playerObject)) continue;
+                var chan = playerObject.GetComponentInChildren<RPCChannel>();
+                if (!Utilities.IsValid(chan)) continue;
+                chan.SendVariable(target, id, parameters);
+            }
         }
     }
 }

@@ -1,27 +1,38 @@
 using System;
+using System.Text;
 using DizzyRPC.Attribute;
+using DizzyRPC.Debugger;
 using DizzyRPC.Examples;
 using UdonSharp;
 using UnityEngine;
 using VRC.SDK3.UdonNetworkCalling;
 using VRC.SDKBase;
+using VRC.Udon.Common;
 using VRC.Udon.Common.Interfaces;
 
 namespace DizzyRPC
 {
     [GenerateRPCs]
-    [UdonBehaviourSyncMode(BehaviourSyncMode.NoVariableSync)]
+    [UdonBehaviourSyncMode(BehaviourSyncMode.Manual)]
     public class RPCChannel : UdonSharpBehaviour
     {
+        [SerializeField] private RPCDebugger debugger;
         private VRCPlayerApi localPlayer;
+
+        [UdonSynced, HideInInspector]
+        public byte[] rpcData = Array.Empty<byte>();
+
+        [NonSerialized] public uint rpcIndex = 0;
+        private uint lastSent = 0;
 
         private void Start()
         {
             localPlayer = Networking.LocalPlayer;
         }
 
-        public void Send(int id, params object[] parameters)
+        public void SendEvent(int id, params object[] parameters)
         {
+            debugger._OnSendRPC(Networking.GetOwner(gameObject), id, parameters);
             switch (parameters.Length)
             {
                 case 0:
@@ -56,29 +67,456 @@ namespace DizzyRPC
             Debug.LogError($"[DizzyRPC] Skipping RPC {id} because it had too many parameters!");
         }
 
+        public void SendVariable(VRCPlayerApi target, int id, params object[] parameters)
+        {
+            var rpcBytes = Combine(Encode(target == null ? -1 : target.playerId), Encode(id));
+            foreach (var param in parameters)
+            {
+                var paramBytes = Encode(param);
+                rpcBytes = Combine(rpcBytes, paramBytes);
+
+                string paramData = "";
+                foreach (var b in paramBytes) paramData += $" {b}";
+                // Debug.Log($"Encoded RPC Parameter {param} of type {param.GetType().FullName} into {paramBytes.Length} bytes: [{paramData.Trim()}]");
+            }
+
+            rpcBytes = Combine(Encode(++rpcIndex), Encode(rpcBytes.Length-8), rpcBytes);
+
+            string data = "";
+            foreach (var b in rpcBytes) data += $" {b}";
+            // Debug.Log($"Appending RPC Data: {rpcBytes.Length} - [{data.Trim()}] (Should be index {rpcIndex}, length {rpcBytes.Length - 16}, player {(target == null ? -1 : target.playerId)}, id {id}, parameters)");
+
+            rpcData = Combine(rpcData, rpcBytes);
+            RequestSerialization();
+        }
+
+        private byte[] Combine(byte[] baseArray, params byte[] append)
+        {
+            var newArray = new byte[baseArray.Length + append.Length];
+            Buffer.BlockCopy(baseArray, 0, newArray, 0, baseArray.Length);
+            Buffer.BlockCopy(append, 0, newArray, baseArray.Length, append.Length);
+            return newArray;
+        }
+
+        private byte[] Combine(byte[] baseArray, params byte[][] append)
+        {
+            foreach (var arr in append) baseArray = Combine(baseArray, arr);
+            return baseArray;
+        }
+
+        private byte[] Trim(byte[] baseArray, int numBytes)
+        {
+            if (numBytes > baseArray.Length)
+            {
+                Debug.LogError($"Cannot trim {numBytes} from an array only containing {baseArray.Length}!");
+                return null;
+            }
+            var newArray = new byte[baseArray.Length - numBytes];
+            Buffer.BlockCopy(baseArray, numBytes, newArray, 0, newArray.Length);
+            return newArray;
+        }
+
+        private byte[] Take(byte[] baseArray, int numBytes)
+        {
+            if (numBytes > baseArray.Length)
+            {
+                Debug.LogError($"Cannot take {numBytes} from an array only containing {baseArray.Length}!");
+                return null;
+            }
+            var newArray = new byte[numBytes];
+            Buffer.BlockCopy(baseArray, 0, newArray, 0, numBytes);
+            return newArray;
+        }
+
+        public override void OnPreSerialization()
+        {
+            lastSent = rpcIndex;
+        }
+
+        public override void OnPostSerialization(SerializationResult result)
+        {
+            debugger.OnVariableSyncSent(result);
+            if (result.success)
+            {
+                // string data = "";
+                // foreach (var b in rpcData) data += $" {b}";
+                // Debug.Log($"Sent RPC Data: {rpcData.Length} - [{data.Trim()}]");
+                bool hadAnyData = false;
+                while (rpcData.Length >= 4)
+                {
+                    hadAnyData = true;
+                    uint id = BitConverter.ToUInt32(rpcData, 0);
+                    if (id == lastSent + 1) break;
+                    if (id > lastSent)
+                    {
+                        Panic($"{id - lastSent - 1} Variable RPC IDs were skipped!");
+                        return;
+                    }
+
+                    if (rpcData.Length < 16)
+                    {
+                        Panic($"RPC is missing any length specifier!");
+                        return;
+                    }
+
+                    int length = BitConverter.ToInt32(rpcData, 4);
+                    if (rpcData.Length < length + 16)
+                    {
+                        Panic($"RPC data is incomplete! Expected at least {length + 16} bytes, found {rpcData.Length}!");
+                        return;
+                    }
+
+                    rpcData = Trim(rpcData, length + 16);
+                }
+                if(hadAnyData)RequestSerialization();
+            }
+        }
+
+        private bool hasLateSynced = false;
+        public override void OnDeserialization(DeserializationResult result)
+        {
+            if (!hasLateSynced)
+            {
+                // Late joiners automatically get all variables synced to them. This will include RPCs, potentially causing duplicate or old RPCs to fire for new joiners.
+                Debug.Log($"Ignored Late sync Serialization of {rpcData.Length} bytes");
+                hasLateSynced = true;
+                return;
+            }
+            debugger.OnVariableSyncReceived(Networking.GetOwner(gameObject), result.sendTime, result.receiveTime);
+
+            // string data = "";
+            // foreach (var b in rpcData) data += $" {b}";
+            // Debug.Log($"Received RPC Data: {rpcData.Length} - [{data.Trim()}]");
+
+            while (rpcData.Length >= 4)
+            {
+                uint index = BitConverter.ToUInt32(rpcData, 0);
+                if (index <= rpcIndex)
+                {
+                    Panic($"Received old RPC index: {index}! (Current index is {rpcIndex})");
+                    rpcIndex = index;
+                    return;
+                }
+
+                if (index > rpcIndex + 1 && rpcIndex!=0)
+                {
+                    Debug.LogWarning($"{index - rpcIndex - 1} RPCs were dropped.");
+                }
+
+                rpcIndex = index;
+                if (rpcData.Length < 16)
+                {
+                    Panic($"RPC is missing metadata!");
+                    return;
+                }
+
+                int length = BitConverter.ToInt32(rpcData, 4);
+                int targetPlayerId = BitConverter.ToInt32(rpcData, 8);
+                int id = BitConverter.ToInt32(rpcData, 12);
+
+                if (rpcData.Length < length + 16)
+                {
+                    Panic($"RPC data is incomplete! Expected at least {length + 16} bytes, found {rpcData.Length}!");
+                    return;
+                }
+
+                var rpcBytes = Take(rpcData, length + 16);
+                rpcData = Trim(rpcData, length + 16);
+
+                if (targetPlayerId != -1 && targetPlayerId != Networking.LocalPlayer.playerId) continue; // This RPC isn't for us
+
+                _DecodeRPC(id, Trim(rpcBytes, 16));
+            }
+        }
+
+        private void Panic(string message)
+        {
+            Debug.LogError($"RPC data was corrupted! Dropping ALL pending RPCs. ({message})");
+            rpcData = new byte[0];
+        }
+
+        private byte[] Encode(object o)
+        {
+            // Debug.Log($"Encoding type: {o.GetType().FullName}");
+            var type = o.GetType();
+            if (type==typeof(bool)) return BitConverter.GetBytes((bool)o);
+            if (type==typeof(sbyte)) return new []{(byte)(sbyte)o};
+            if (type==typeof(byte)) return new []{(byte)o};
+            if (type==typeof(short)) return BitConverter.GetBytes((short)o);
+            if (type==typeof(int)) return BitConverter.GetBytes((int)o);
+            if (type==typeof(uint)) return BitConverter.GetBytes((uint)o);
+            if (type==typeof(long)) return BitConverter.GetBytes((long)o);
+            if (type==typeof(ulong)) return BitConverter.GetBytes((ulong)o);
+            if (type==typeof(float)) return BitConverter.GetBytes((float)o);
+            if (type==typeof(double)) return BitConverter.GetBytes((double)o);
+            if (type==typeof(char)) return BitConverter.GetBytes((char)o);
+            if (type == typeof(string))
+            {
+                string s = (string)o;
+                return Combine(BitConverter.GetBytes(s.Length), Encoding.UTF8.GetBytes(s));
+            }
+            if (type==typeof(Vector2))
+            {
+                var vec = (Vector2)o;
+                var bytes = new byte[4 * 2];
+                Buffer.BlockCopy(BitConverter.GetBytes(vec.x), 0, bytes, 0, 4);
+                Buffer.BlockCopy(BitConverter.GetBytes(vec.y), 0, bytes, 4, 4);
+                return bytes;
+            }
+            if (type==typeof(Vector3))
+            {
+                var vec = (Vector3)o;
+                var bytes = new byte[4 * 3];
+                Buffer.BlockCopy(BitConverter.GetBytes(vec.x), 0, bytes, 0, 4);
+                Buffer.BlockCopy(BitConverter.GetBytes(vec.y), 0, bytes, 4, 4);
+                Buffer.BlockCopy(BitConverter.GetBytes(vec.z), 0, bytes, 4 * 2, 4);
+                return bytes;
+            }
+            if (type==typeof(Vector4))
+            {
+                var vec = (Vector4)o;
+                var bytes = new byte[4 * 4];
+                Buffer.BlockCopy(BitConverter.GetBytes(vec.x), 0, bytes, 0, 4);
+                Buffer.BlockCopy(BitConverter.GetBytes(vec.y), 0, bytes, 4, 4);
+                Buffer.BlockCopy(BitConverter.GetBytes(vec.z), 0, bytes, 4 * 2, 4);
+                Buffer.BlockCopy(BitConverter.GetBytes(vec.w), 0, bytes, 4 * 3, 4);
+                return bytes;
+            }
+            if (type==typeof(Quaternion))
+            {
+                var q = (Quaternion)o;
+                var bytes = new byte[4 * 4];
+                Buffer.BlockCopy(BitConverter.GetBytes(q.x), 0, bytes, 0, 4);
+                Buffer.BlockCopy(BitConverter.GetBytes(q.y), 0, bytes, 4, 4);
+                Buffer.BlockCopy(BitConverter.GetBytes(q.z), 0, bytes, 4 * 2, 4);
+                Buffer.BlockCopy(BitConverter.GetBytes(q.w), 0, bytes, 4 * 3, 4);
+                return bytes;
+            }
+            if (type==typeof(Color))
+            {
+                var c = (Color)o;
+                var bytes = new byte[4 * 4];
+                Buffer.BlockCopy(BitConverter.GetBytes(c.r), 0, bytes, 0, 4);
+                Buffer.BlockCopy(BitConverter.GetBytes(c.g), 0, bytes, 4, 4);
+                Buffer.BlockCopy(BitConverter.GetBytes(c.b), 0, bytes, 4 * 2, 4);
+                Buffer.BlockCopy(BitConverter.GetBytes(c.a), 0, bytes, 4 * 3, 4);
+                return bytes;
+            }
+            
+            if (type==typeof(Color32))
+            {
+                var c = (Color32)o;
+                return new[] { c.r, c.g, c.b, c.a };
+            }
+
+            Debug.LogError($"Could not encode type: {o.GetType().FullName}");
+            return null;
+        }
+
+        #region Decode
+
+        private bool DecodeBoolean(byte[] bytes, ref int position)
+        {
+            bool b = BitConverter.ToBoolean(bytes, position);
+            position++;
+            return b;
+        }
+
+        private sbyte DecodeSByte(byte[] bytes, ref int position)
+        {
+            sbyte b = (sbyte)bytes[position];
+            position += 1;
+            return b;
+        }
+
+        private byte DecodeByte(byte[] bytes, ref int position)
+        {
+            byte b = bytes[position];
+            position += 1;
+            return b;
+        }
+
+        private short DecodeInt16(byte[] bytes, ref int position)
+        {
+            short s = BitConverter.ToInt16(bytes, position);
+            position += 2;
+            return s;
+        }
+
+        private ushort DecodeUInt16(byte[] bytes, ref int position)
+        {
+            ushort us = BitConverter.ToUInt16(bytes, position);
+            position += 2;
+            return us;
+        }
+
+        private int DecodeInt32(byte[] bytes, ref int position)
+        {
+            int i = BitConverter.ToInt32(bytes, position);
+            position += 4;
+            return i;
+        }
+
+        private uint DecodeUInt32(byte[] bytes, ref int position)
+        {
+            uint ui = BitConverter.ToUInt32(bytes, position);
+            position += 4;
+            return ui;
+        }
+
+        private long DecodeInt64(byte[] bytes, ref int position)
+        {
+            long l = BitConverter.ToInt64(bytes, position);
+            position += 8;
+            return l;
+        }
+
+        private ulong DecodeUInt64(byte[] bytes, ref int position)
+        {
+            ulong ul = BitConverter.ToUInt64(bytes, position);
+            position += 8;
+            return ul;
+        }
+
+        private float DecodeSingle(byte[] bytes, ref int position)
+        {
+            float f = BitConverter.ToSingle(bytes, position);
+            position += 4;
+            return f;
+        }
+
+        private double DecodeDouble(byte[] bytes, ref int position)
+        {
+            double d = BitConverter.ToDouble(bytes, position);
+            position += 8;
+            return d;
+        }
+
+        private char DecodeChar(byte[] bytes, ref int position)
+        {
+            char c = BitConverter.ToChar(bytes, position);
+            position += 2;
+            return c;
+        }
+
+        private Vector2 DecodeVector2(byte[] bytes, ref int position)
+        {
+            float x = BitConverter.ToSingle(bytes, position);
+            float y = BitConverter.ToSingle(bytes, position + 4);
+            position += 4 * 2;
+            return new Vector2(x, y);
+        }
+
+        private Vector3 DecodeVector3(byte[] bytes, ref int position)
+        {
+            float x = BitConverter.ToSingle(bytes, position);
+            float y = BitConverter.ToSingle(bytes, position + 4);
+            float z = BitConverter.ToSingle(bytes, position + 8);
+            position += 4 * 3;
+            return new Vector3(x, y, z);
+        }
+
+        private Vector4 DecodeVector4(byte[] bytes, ref int position)
+        {
+            float x = BitConverter.ToSingle(bytes, position);
+            float y = BitConverter.ToSingle(bytes, position + 4);
+            float z = BitConverter.ToSingle(bytes, position + 8);
+            float w = BitConverter.ToSingle(bytes, position + 12);
+            position += 4 * 4;
+            return new Vector4(x, y, z, w);
+        }
+
+        private Quaternion DecodeQuaternion(byte[] bytes, ref int position)
+        {
+            float x = BitConverter.ToSingle(bytes, position);
+            float y = BitConverter.ToSingle(bytes, position + 4);
+            float z = BitConverter.ToSingle(bytes, position + 8);
+            float w = BitConverter.ToSingle(bytes, position + 12);
+            position += 4 * 4;
+            return new Quaternion(x, y, z, w);
+        }
+
+        private Color DecodeColor(byte[] bytes, ref int position)
+        {
+            float r = BitConverter.ToSingle(bytes, position);
+            float g = BitConverter.ToSingle(bytes, position + 4);
+            float b = BitConverter.ToSingle(bytes, position + 8);
+            float a = BitConverter.ToSingle(bytes, position + 12);
+            position += 4 * 4;
+            return new Color(r, g, b, a);
+        }
+
+        private Color32 DecodeColor32(byte[] bytes, ref int position)
+        {
+            byte r = bytes[position];
+            byte g = bytes[position + 1];
+            byte b = bytes[position + 2];
+            byte a = bytes[position + 3];
+            position += 4;
+            return new Color32(r, g, b, a);
+        }
+
+        private string DecodeString(byte[] bytes, ref int position)
+        {
+            int length = DecodeInt32(bytes, ref position);
+            string s = Encoding.UTF8.GetString(bytes, position, length);
+            position += length;
+            return s;
+        }
+
+        #endregion
+
         #region Generated RPCs (DO NOT EDIT)
-        [UnityEngine.SerializeField] private DizzyRPC.Examples.SingletonRPCExample singleton_0;
-        [UnityEngine.SerializeField] private DizzyRPC.Examples.RPCHookExample singleton_1;
-        
-        [UnityEngine.SerializeField] private DizzyRPC.Examples.RPCRouterExample router_0;
-        
-        public const int RPC_RoutedRPCExample_SomeRPC = 0;
-        public const int RPC_SingletonRPCExample_Example = 1;
-        public const int RPC_SingletonRPCExample_ExampleWithParameters = 2;
-        
-        [VRC.SDK3.UdonNetworkCalling.NetworkCallable]
-        public void RPC_0(System.Int32 _id, System.String message) {
-            router_0._Route(_id).SomeRPC(message);
+
+        [SerializeField] private SingletonRPCExample singleton_0;
+        [SerializeField] private RPCHookExample singleton_1;
+
+        [SerializeField] private RPCRouterExample router_0;
+
+        public const int RPC_RoutedRPCExample__SomeRPC = 0;
+        public const int RPC_SingletonRPCExample__Example = 1;
+        public const int RPC_SingletonRPCExample__ExampleWithParameters = 2;
+        public const int RPC_SingletonRPCExample__ExampleVariableRPC = 3;
+
+        [NetworkCallable]
+        public void RPC_0(Int32 _id, String message)
+        {
+            debugger._OnReceiveRPC(NetworkCalling.CallingPlayer, 0, _id, message);
+            router_0._Route(_id)._SomeRPC(message);
         }
-        [VRC.SDK3.UdonNetworkCalling.NetworkCallable]
-        public void RPC_1() {
-            singleton_0.Example();
+
+        [NetworkCallable]
+        public void RPC_1()
+        {
+            debugger._OnReceiveRPC(NetworkCalling.CallingPlayer, 1);
+            singleton_0._Example();
         }
-        [VRC.SDK3.UdonNetworkCalling.NetworkCallable]
-        public void RPC_2(System.Int32 parameter) {
+
+        [NetworkCallable]
+        public void RPC_2(Int32 parameter)
+        {
+            debugger._OnReceiveRPC(NetworkCalling.CallingPlayer, 2, parameter);
             if (!singleton_1.CheckMethod(parameter)) return;
-            singleton_0.ExampleWithParameters(parameter);
+            singleton_0._ExampleWithParameters(parameter);
         }
+
+        private void _DecodeRPC(int id, byte[] data)
+        {
+            switch (id)
+            {
+                case 3:
+                    _DecodeRPC_3(data);
+                    break;
+            }
+        }
+
+        private void _DecodeRPC_3(byte[] data)
+        {
+            int _data_position = 0;
+            Int32 parameter = DecodeInt32(data, ref _data_position);
+            singleton_0._ExampleVariableRPC(parameter);
+        }
+
         #endregion
     }
 }
