@@ -15,13 +15,13 @@ namespace DizzyRPC.Examples
         [RPCMethod(mode:RPCSyncMode.Event)]
         public void _Example()
         {
-            // Debug.Log("[DizzyRPC] Singleton RPC Example - Hello, world!");
+            Debug.Log("[DizzyRPC] Singleton RPC Example - Hello, world!");
         }
 
         [RPCMethod(mode:RPCSyncMode.Event)]
         public void _ExampleWithParameters(int parameter)
         {
-            // Debug.Log($"[DizzyRPC] Singleton RPC Example - Hello, world! - {parameter}");
+            Debug.Log($"[DizzyRPC] Singleton RPC Example - Hello, world! - {parameter}");
         }
 
         [RPCMethod(mode: RPCSyncMode.Variable)]
@@ -50,11 +50,8 @@ namespace DizzyRPC.Examples
         }
 
         #region Generated RPCs (DO NOT EDIT)
-        [SerializeField] private RPCManager _rpc_manager;
+        [UnityEngine.SerializeField] private DizzyRPC.RPCManager _rpc_manager;
         
-        public void _Send_Example(VRCPlayerApi target) => _rpc_manager.SendEvent(target, RPCChannel.RPC_SingletonRPCExample__Example);
-        public void _Send_ExampleWithParameters(VRCPlayerApi target, Int32 parameter) => _rpc_manager.SendEvent(target, RPCChannel.RPC_SingletonRPCExample__ExampleWithParameters, parameter);
-        public void _Send_ExampleVariableRPC(VRCPlayerApi target, Int32 parameter) => _rpc_manager.SendVariable(target, RPCChannel.RPC_SingletonRPCExample__ExampleVariableRPC, parameter);
         #endregion
     }
 }

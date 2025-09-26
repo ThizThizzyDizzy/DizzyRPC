@@ -467,56 +467,15 @@ namespace DizzyRPC
         #endregion
 
         #region Generated RPCs (DO NOT EDIT)
-
-        [SerializeField] private SingletonRPCExample singleton_0;
-        [SerializeField] private RPCHookExample singleton_1;
-
-        [SerializeField] private RPCRouterExample router_0;
-
-        public const int RPC_RoutedRPCExample__SomeRPC = 0;
-        public const int RPC_SingletonRPCExample__Example = 1;
-        public const int RPC_SingletonRPCExample__ExampleWithParameters = 2;
-        public const int RPC_SingletonRPCExample__ExampleVariableRPC = 3;
-
-        [NetworkCallable]
-        public void RPC_0(Int32 _id, String message)
-        {
-            debugger._OnReceiveRPC(NetworkCalling.CallingPlayer, 0, _id, message);
-            router_0._Route(_id)._SomeRPC(message);
-        }
-
-        [NetworkCallable]
-        public void RPC_1()
-        {
-            debugger._OnReceiveRPC(NetworkCalling.CallingPlayer, 1);
-            singleton_0._Example();
-        }
-
-        [NetworkCallable]
-        public void RPC_2(Int32 parameter)
-        {
-            debugger._OnReceiveRPC(NetworkCalling.CallingPlayer, 2, parameter);
-            if (!singleton_1.CheckMethod(parameter)) return;
-            singleton_0._ExampleWithParameters(parameter);
-        }
-
-        private void _DecodeRPC(int id, byte[] data)
-        {
-            switch (id)
-            {
-                case 3:
-                    _DecodeRPC_3(data);
-                    break;
+        
+        
+        
+        
+        private void _DecodeRPC(int id, byte[] data) {
+            switch(id){
             }
         }
-
-        private void _DecodeRPC_3(byte[] data)
-        {
-            int _data_position = 0;
-            Int32 parameter = DecodeInt32(data, ref _data_position);
-            singleton_0._ExampleVariableRPC(parameter);
-        }
-
+        
         #endregion
     }
 }

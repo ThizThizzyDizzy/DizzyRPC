@@ -50,6 +50,35 @@ namespace DizzyRPC.Editor
                 AssetDatabase.Refresh();
             }
         }
+        
+        [MenuItem("Tools/DizzyRPC/Clean Compiled RPCs")]
+        public static void Clean()
+        {
+            generatedSingletons.Clear();
+            generatedRouters.Clear();
+            generatedRPCs.Clear();
+            
+            try
+            {
+                AssetDatabase.StartAssetEditing();
+
+                var types = TypeCache.GetTypesWithAttribute<GenerateRPCsAttribute>();
+                foreach (var type in types.Where((type) => type == typeof(RPCChannel)))
+                {
+                    GenerateRPCs(type, FindMonoAssetPath(type), GenerationMode.Channel);
+                }
+
+                foreach (var type in types.Where((type) => type.GetMethods().Any((method) => method.GetCustomAttribute<RPCMethodAttribute>() != null)))
+                {
+                    GenerateRPCs(type, FindMonoAssetPath(type), GenerationMode.MethodContainer);
+                }
+            }
+            finally
+            {
+                AssetDatabase.StopAssetEditing();
+                AssetDatabase.Refresh();
+            }
+        }
 
         private static string FindMonoAssetPath(Type type)
         {

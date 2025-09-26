@@ -31,10 +31,8 @@ namespace DizzyRPC.Examples
             }
         }
         #region Generated RPCs (DO NOT EDIT)
-        [SerializeField] private RPCManager _rpc_manager;
-        [SerializeField] private RPCRouterExample _rpc_router;
+        [UnityEngine.SerializeField] private DizzyRPC.RPCManager _rpc_manager;
         
-        public void _Send_SomeRPC(VRCPlayerApi target, String message) => _rpc_manager.SendEvent(target, RPCChannel.RPC_RoutedRPCExample__SomeRPC, _rpc_router._GetId(this), message);
         #endregion
     }
 }
