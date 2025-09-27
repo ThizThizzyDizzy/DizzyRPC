@@ -1,19 +1,14 @@
 using System;
 using System.Text;
-using DizzyRPC.Attribute;
 using DizzyRPC.Debugger;
-using DizzyRPC.Examples;
 using UdonSharp;
 using UnityEngine;
-using VRC.SDK3.UdonNetworkCalling;
 using VRC.SDKBase;
-using VRC.Udon;
 using VRC.Udon.Common;
 using VRC.Udon.Common.Interfaces;
 
 namespace DizzyRPC
 {
-    [GenerateRPCs]
     [UdonBehaviourSyncMode(BehaviourSyncMode.Manual)]
     public class RPCChannel : UdonSharpBehaviour
     {

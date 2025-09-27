@@ -164,21 +164,12 @@ namespace DizzyRPC.Editor
             {
                 AssetDatabase.StartAssetEditing();
 
-                var types = TypeCache.GetTypesWithAttribute<GenerateRPCsAttribute>();
-                List<Type> unknownTypes = new(types);
-                foreach (var type in types.Where((type) => type == typeof(RPCChannel))) // I could just always generate for RPCChannel, but this way it still uses the GenerateRPCs attribute
-                {
-                    unknownTypes.Remove(type);
-                    anyChanges |= GenerateRPCs(type, FindMonoAssetPath(type), GenerationTarget.Channel, mode);
-                }
+                anyChanges |= GenerateRPCs(typeof(RPCChannel), FindMonoAssetPath(typeof(RPCChannel)), GenerationTarget.Channel, mode);
 
-                foreach (var type in types.Where((type) => type.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance).Any((method) => method.GetCustomAttribute<RPCMethodAttribute>() != null)))
+                foreach (var type in Assembly.GetAssembly(typeof(RPCMethodAttribute)).GetTypes().Where((type) => type.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance).Any((method) => method.GetCustomAttribute<RPCMethodAttribute>() != null)))
                 {
-                    unknownTypes.Remove(type);
                     anyChanges |= GenerateRPCs(type, FindMonoAssetPath(type), GenerationTarget.MethodContainer, mode);
                 }
-
-                if (unknownTypes.Count > 0) throw new Exception($"[DizzyRPC] Could not generate RPCs for type {unknownTypes[0].FullName}, as it does not follow a recognized pattern!");
             }
             finally
             {

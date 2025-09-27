@@ -3,11 +3,9 @@ using DizzyRPC.Attribute;
 using UdonSharp;
 using UnityEngine;
 using VRC.SDKBase;
-using VRC.Udon;
 
 namespace DizzyRPC.Examples
 {
-    [GenerateRPCs]
     [UdonBehaviourSyncMode(BehaviourSyncMode.None)]
     public class RoutedRPCExample : UdonSharpBehaviour
     {

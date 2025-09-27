@@ -8,7 +8,6 @@ using VRRefAssist;
 namespace DizzyRPC.Examples
 {
     [Singleton]
-    [GenerateRPCs]
     [UdonBehaviourSyncMode(BehaviourSyncMode.None)]
     public class SingletonRPCExample : UdonSharpBehaviour
     {
