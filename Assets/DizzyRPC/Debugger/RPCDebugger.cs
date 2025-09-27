@@ -20,6 +20,7 @@ namespace DizzyRPC.Debugger
         private RPCDebuggerGraph sentVariableBytes;
         private RPCDebuggerGraph receivedVariables;
         private RPCDebuggerGraph totalQueuedEvents;
+        private RPCDebuggerGraph rpcPerSerialization;
         
         private RPCDebuggerGraph networkClogged;
         private RPCDebuggerGraph networkSuffering;
@@ -45,6 +46,7 @@ namespace DizzyRPC.Debugger
 
         private void Start()
         {
+            rpcPerSerialization = CreateGraph(0, 2, "RPCs per serialization");
             totalBytesPerSecond = CreateGraph(0, 1, "Total Bytes Per Second");
             totalQueuedEvents = CreateGraph(0, 0, "Total Queued Events");
             
@@ -55,7 +57,6 @@ namespace DizzyRPC.Debugger
             networkClogged = CreateGraph(-2, 2, "Clogged");
             networkSuffering = CreateGraph(-2, 1, "Suffering");
             throughputPercentage = CreateGraph(-2, 0, "Bandwidth Usage");
-
         }
 
         private void Update()
@@ -78,7 +79,7 @@ namespace DizzyRPC.Debugger
                         queuedEvents[i] = CreateGraph(i + 1, 0, $"QE Channel {i}");
                     }
                     
-                    queuedEvents[i].title.text = $"QE Channel {i}:\n{player.displayName}";
+                    queuedEvents[i].title.text = $"QE Channel {i}:\n{player.displayName} ({player.playerId})";
                     queuedEvents[i].player = player;
                     queuedEvents[i].Add(NetworkCalling.GetQueuedEvents((IUdonEventReceiver)channel, "RPC_0")/100f);
                     
@@ -90,7 +91,7 @@ namespace DizzyRPC.Debugger
                         bytesPerSecond[i] = CreateGraph(i + 1, 1, $"BPS Channel {i}");
                     }
                     
-                    bytesPerSecond[i].title.text = $"BPS Channel {i}:\n{player.displayName}\nLast RPC: {channel.rpcIndex}";
+                    bytesPerSecond[i].title.text = $"BPS Channel {i}:\n{player.displayName} ({player.playerId})";
                     bytesPerSecond[i].player = player;
                     bytesPerSecond[i].Add(Stats.BytesPerSecondAverage(channel.gameObject)/Stats.BytesOutMax);
                     
@@ -102,7 +103,7 @@ namespace DizzyRPC.Debugger
                         variableSyncLatency[i] = CreateGraph(i + 1, 2, "Serialization Latency");
                     }
                     
-                    variableSyncLatency[i].title.text = $"Serialization Latency\nLast RPC: {channel.rpcIndex}";
+                    variableSyncLatency[i].title.text = $"Serialization Latency";
                     variableSyncLatency[i].player = player;
                     i++;
                 }
@@ -150,9 +151,10 @@ namespace DizzyRPC.Debugger
             numSentVariableBytes += result.byteCount;
         }
 
-        public void OnVariableSyncReceived(VRCPlayerApi player, float sendTime, float receiveTime)
+        public void OnVariableSyncReceived(VRCPlayerApi player, float sendTime, float receiveTime, int rpcCount)
         {
             numReceivedVariables++;
+            rpcPerSerialization.Add(rpcCount/32f);
             foreach(var graph in variableSyncLatency)
                 if (graph.player == player)
                     graph.Add(receiveTime - sendTime);

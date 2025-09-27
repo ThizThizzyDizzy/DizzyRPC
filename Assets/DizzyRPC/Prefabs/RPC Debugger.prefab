@@ -46,7 +46,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   serializationData:
-    SerializedFormat: 2
+    SerializedFormat: 0
     SerializedBytes: 
     ReferencedUnityObjects: []
     SerializedBytesString: 
@@ -55,9 +55,6 @@ MonoBehaviour:
     PrefabModifications: []
     SerializationNodes: []
   _udonSharpBackingUdonBehaviour: {fileID: 4718737049781292291}
-  queuedEventsGraph: {fileID: 0}
-  sentVariablesGraph: {fileID: 0}
-  sentVariableBytesGraph: {fileID: 0}
   graphPrefab: {fileID: 3014742605235042338, guid: 7affeed12857577498419f507626f668,
     type: 3}
 --- !u!114 &4718737049781292291

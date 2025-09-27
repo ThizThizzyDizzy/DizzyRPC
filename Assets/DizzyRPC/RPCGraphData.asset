@@ -1,0 +1,51 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 853e72b0442cb1c4286c2b5e8630901e, type: 3}
+  m_Name: RPCGraphData
+  m_EditorClassIdentifier: 
+  graphData:
+  - guid: 0bac2c330df3eb04db954ae2ab626042
+    singleton: 1
+    router: 1
+    routerTypeName: RoutedGraphRPCExample
+    rpcMethods:
+    - name: _asdf
+      rateLimitPerSecond: -1
+      enforceSecure: 0
+      allowDropping: 1
+      requireLowLatency: 0
+      ignoreDuplicates: 0
+      mode: 2
+    rpcHooks:
+    - name: _asdf
+      fullTypeName: DizzyRPC.Examples.RoutedRPCExample
+      methodName: _SomeRPC
+      parameterNames:
+      - message
+    - name: asdf1324
+      fullTypeName: GraphRPCExample
+      methodName: _asdf
+      parameterNames:
+      - param1
+  - guid: 4ec182d9eaebcbd4c87201d63ddfddaf
+    singleton: 0
+    router: 0
+    routerTypeName: DizzyRPC.Examples.RoutedRPCExample
+    rpcMethods:
+    - name: _asdf
+      rateLimitPerSecond: 0
+      enforceSecure: 0
+      allowDropping: 0
+      requireLowLatency: 0
+      ignoreDuplicates: 0
+      mode: 0
+    rpcHooks: []

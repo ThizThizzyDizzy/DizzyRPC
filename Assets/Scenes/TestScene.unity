@@ -202,9 +202,9 @@ MonoBehaviour:
     SerializationNodes: []
   _udonSharpBackingUdonBehaviour: {fileID: 357192397}
   routedObjects:
-  - {fileID: 830754500}
-  - {fileID: 2106177029}
-  - {fileID: 2069232980}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
 --- !u!4 &357192399
 Transform:
   m_ObjectHideFlags: 0
@@ -293,7 +293,7 @@ MonoBehaviour:
     PrefabModifications: []
     SerializationNodes: []
   _udonSharpBackingUdonBehaviour: {fileID: 449163128}
-  _rpc_manager: {fileID: 2096463621}
+  _rpc_manager: {fileID: 0}
 --- !u!4 &449163130
 Transform:
   m_ObjectHideFlags: 0
@@ -547,8 +547,7 @@ MonoBehaviour:
     PrefabModifications: []
     SerializationNodes: []
   _udonSharpBackingUdonBehaviour: {fileID: 830754501}
-  _rpc_manager: {fileID: 2096463621}
-  _rpc_router: {fileID: 357192398}
+  _rpc_manager: {fileID: 0}
 --- !u!114 &830754501
 MonoBehaviour:
   m_ObjectHideFlags: 2
@@ -1572,8 +1571,7 @@ MonoBehaviour:
     PrefabModifications: []
     SerializationNodes: []
   _udonSharpBackingUdonBehaviour: {fileID: 2069232981}
-  _rpc_manager: {fileID: 2096463621}
-  _rpc_router: {fileID: 357192398}
+  _rpc_manager: {fileID: 0}
 --- !u!114 &2069232981
 MonoBehaviour:
   m_ObjectHideFlags: 2
@@ -1673,8 +1671,7 @@ MonoBehaviour:
     PrefabModifications: []
     SerializationNodes: []
   _udonSharpBackingUdonBehaviour: {fileID: 2106177030}
-  _rpc_manager: {fileID: 2096463621}
-  _rpc_router: {fileID: 357192398}
+  _rpc_manager: {fileID: 0}
 --- !u!114 &2106177030
 MonoBehaviour:
   m_ObjectHideFlags: 2
@@ -1796,6 +1793,12 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 4023837137505615776, guid: e8f4332dc929b4c40ac5eae9029db3d1,
         type: 3}
+    - target: {fileID: 4718737049781292291, guid: e8f4332dc929b4c40ac5eae9029db3d1,
+        type: 3}
+      propertyPath: serializedProgramAsset
+      value: 
+      objectReference: {fileID: 11400000, guid: dc58ad02a2b73be4bb89d61f3b132ee0,
+        type: 2}
     - target: {fileID: 5246862342820131260, guid: e8f4332dc929b4c40ac5eae9029db3d1,
         type: 3}
       propertyPath: m_Name
@@ -1885,6 +1888,12 @@ PrefabInstance:
       propertyPath: _syncMethod
       value: 3
       objectReference: {fileID: 0}
+    - target: {fileID: 1677435050741543583, guid: eec262c1b0b6ca44c8f2a14e2ab61d7d,
+        type: 3}
+      propertyPath: serializedProgramAsset
+      value: 
+      objectReference: {fileID: 11400000, guid: 938d77742caaa6f46b2f03f458443259,
+        type: 2}
     - target: {fileID: 2068939873682662318, guid: eec262c1b0b6ca44c8f2a14e2ab61d7d,
         type: 3}
       propertyPath: manager
@@ -1909,7 +1918,7 @@ PrefabInstance:
         type: 3}
       propertyPath: singleton_1
       value: 
-      objectReference: {fileID: 449163132}
+      objectReference: {fileID: 0}
     - target: {fileID: 2068939873682662318, guid: eec262c1b0b6ca44c8f2a14e2ab61d7d,
         type: 3}
       propertyPath: serializationData.Prefab
@@ -1926,6 +1935,12 @@ PrefabInstance:
       propertyPath: m_IsActive
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 6005656865807062520, guid: eec262c1b0b6ca44c8f2a14e2ab61d7d,
+        type: 3}
+      propertyPath: serializedProgramAsset
+      value: 
+      objectReference: {fileID: 11400000, guid: 90167b400d7e8054493a39160cb78da5,
+        type: 2}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []

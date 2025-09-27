@@ -7,6 +7,7 @@ using UdonSharp;
 using UnityEngine;
 using VRC.SDK3.UdonNetworkCalling;
 using VRC.SDKBase;
+using VRC.Udon;
 using VRC.Udon.Common;
 using VRC.Udon.Common.Interfaces;
 
@@ -16,23 +17,28 @@ namespace DizzyRPC
     [UdonBehaviourSyncMode(BehaviourSyncMode.Manual)]
     public class RPCChannel : UdonSharpBehaviour
     {
+        private const int HEADER_OFFSET_TARGET = 0;
+        private const int HEADER_LENGTH_TARGET = sizeof(ushort);
+        private const int HEADER_OFFSET_ID = HEADER_OFFSET_TARGET + HEADER_LENGTH_TARGET;
+        private const int HEADER_LENGTH_ID = sizeof(ushort);
+        private const int HEADER_OFFSET_LENGTH = HEADER_OFFSET_ID + HEADER_LENGTH_ID;
+        private const int HEADER_LENGTH_LENGTH = sizeof(ushort);
+        private const int HEADER_LENGTH = HEADER_OFFSET_LENGTH + HEADER_LENGTH_LENGTH;
+
         [SerializeField] private RPCDebugger debugger;
         private VRCPlayerApi localPlayer;
 
         [UdonSynced, HideInInspector]
         public byte[] rpcData = Array.Empty<byte>();
 
-        [NonSerialized] public uint rpcIndex = 0;
-        private uint lastSent = 0;
-
         private void Start()
         {
             localPlayer = Networking.LocalPlayer;
         }
 
-        public void SendEvent(int id, params object[] parameters)
+        public void SendEvent(ushort id, params object[] parameters)
         {
-            debugger._OnSendRPC(Networking.GetOwner(gameObject), id, parameters);
+            if (debugger != null) debugger._OnSendRPC(Networking.GetOwner(gameObject), id, parameters);
             switch (parameters.Length)
             {
                 case 0:
@@ -67,9 +73,28 @@ namespace DizzyRPC
             Debug.LogError($"[DizzyRPC] Skipping RPC {id} because it had too many parameters!");
         }
 
-        public void SendVariable(VRCPlayerApi target, int id, params object[] parameters)
+        public void SendVariable(VRCPlayerApi target, ushort id, bool ignoreDuplicates, params object[] parameters)
         {
-            var rpcBytes = Combine(Encode(target == null ? -1 : target.playerId), Encode(id));
+            if (ignoreDuplicates)
+            {
+                for (int i = 0; i < rpcData.Length;)
+                {
+                    if (rpcData.Length < i + HEADER_LENGTH) break;
+                    ushort _id = BitConverter.ToUInt16(rpcData, HEADER_OFFSET_ID);
+                    ushort length = BitConverter.ToUInt16(rpcData, i + HEADER_OFFSET_LENGTH);
+
+                    if (_id == id)
+                    {
+                        rpcData = Combine(Take(rpcData, i), Trim(rpcData, i+length+HEADER_LENGTH)); // Remove that RPC, so that the current newer one gets added on the end
+                        break;
+                    }
+
+                    if (rpcData.Length < length + HEADER_LENGTH) break;
+                    i += length + HEADER_LENGTH;
+                }
+            }
+
+            var rpcBytes = new byte[0];
             foreach (var param in parameters)
             {
                 var paramBytes = Encode(param);
@@ -80,7 +105,12 @@ namespace DizzyRPC
                 // Debug.Log($"Encoded RPC Parameter {param} of type {param.GetType().FullName} into {paramBytes.Length} bytes: [{paramData.Trim()}]");
             }
 
-            rpcBytes = Combine(Encode(++rpcIndex), Encode(rpcBytes.Length-8), rpcBytes);
+            rpcBytes = Combine(
+                Encode(target == null ? ushort.MaxValue : (ushort)target.playerId),
+                Encode(id),
+                Encode((ushort)rpcBytes.Length),
+                rpcBytes
+            );
 
             string data = "";
             foreach (var b in rpcBytes) data += $" {b}";
@@ -111,6 +141,7 @@ namespace DizzyRPC
                 Debug.LogError($"Cannot trim {numBytes} from an array only containing {baseArray.Length}!");
                 return null;
             }
+
             var newArray = new byte[baseArray.Length - numBytes];
             Buffer.BlockCopy(baseArray, numBytes, newArray, 0, newArray.Length);
             return newArray;
@@ -123,110 +154,59 @@ namespace DizzyRPC
                 Debug.LogError($"Cannot take {numBytes} from an array only containing {baseArray.Length}!");
                 return null;
             }
+
             var newArray = new byte[numBytes];
             Buffer.BlockCopy(baseArray, 0, newArray, 0, numBytes);
             return newArray;
         }
 
-        public override void OnPreSerialization()
-        {
-            lastSent = rpcIndex;
-        }
-
         public override void OnPostSerialization(SerializationResult result)
         {
-            debugger.OnVariableSyncSent(result);
+            if (debugger != null) debugger.OnVariableSyncSent(result);
             if (result.success)
             {
-                // string data = "";
-                // foreach (var b in rpcData) data += $" {b}";
-                // Debug.Log($"Sent RPC Data: {rpcData.Length} - [{data.Trim()}]");
-                bool hadAnyData = false;
-                while (rpcData.Length >= 4)
-                {
-                    hadAnyData = true;
-                    uint id = BitConverter.ToUInt32(rpcData, 0);
-                    if (id == lastSent + 1) break;
-                    if (id > lastSent)
-                    {
-                        Panic($"{id - lastSent - 1} Variable RPC IDs were skipped!");
-                        return;
-                    }
-
-                    if (rpcData.Length < 16)
-                    {
-                        Panic($"RPC is missing any length specifier!");
-                        return;
-                    }
-
-                    int length = BitConverter.ToInt32(rpcData, 4);
-                    if (rpcData.Length < length + 16)
-                    {
-                        Panic($"RPC data is incomplete! Expected at least {length + 16} bytes, found {rpcData.Length}!");
-                        return;
-                    }
-
-                    rpcData = Trim(rpcData, length + 16);
-                }
-                if(hadAnyData)RequestSerialization();
+                bool hadAnyData = rpcData.Length > 0;
+                rpcData = new byte[0];
+                if (hadAnyData) RequestSerialization();
             }
         }
 
-        private bool hasLateSynced = false;
         public override void OnDeserialization(DeserializationResult result)
         {
-            if (!hasLateSynced)
-            {
-                // Late joiners automatically get all variables synced to them. This will include RPCs, potentially causing duplicate or old RPCs to fire for new joiners.
-                Debug.Log($"Ignored Late sync Serialization of {rpcData.Length} bytes");
-                hasLateSynced = true;
-                return;
-            }
-            debugger.OnVariableSyncReceived(Networking.GetOwner(gameObject), result.sendTime, result.receiveTime);
+            int rpcCount = 0;
 
             // string data = "";
             // foreach (var b in rpcData) data += $" {b}";
             // Debug.Log($"Received RPC Data: {rpcData.Length} - [{data.Trim()}]");
 
-            while (rpcData.Length >= 4)
+            while (rpcData.Length > 0)
             {
-                uint index = BitConverter.ToUInt32(rpcData, 0);
-                if (index <= rpcIndex)
+                if (rpcData.Length < HEADER_LENGTH)
                 {
-                    Panic($"Received old RPC index: {index}! (Current index is {rpcIndex})");
-                    rpcIndex = index;
+                    Panic($"RPC header is malformed!");
                     return;
                 }
 
-                if (index > rpcIndex + 1 && rpcIndex!=0)
-                {
-                    Debug.LogWarning($"{index - rpcIndex - 1} RPCs were dropped.");
-                }
+                ushort length = BitConverter.ToUInt16(rpcData, HEADER_OFFSET_LENGTH);
+                int targetPlayerId = BitConverter.ToUInt16(rpcData, HEADER_OFFSET_TARGET);
+                ushort id = BitConverter.ToUInt16(rpcData, HEADER_OFFSET_ID);
 
-                rpcIndex = index;
-                if (rpcData.Length < 16)
+                if (rpcData.Length < length + HEADER_LENGTH)
                 {
-                    Panic($"RPC is missing metadata!");
+                    Panic($"RPC data is incomplete! Expected at least {length + HEADER_LENGTH} bytes, found {rpcData.Length}!");
                     return;
                 }
 
-                int length = BitConverter.ToInt32(rpcData, 4);
-                int targetPlayerId = BitConverter.ToInt32(rpcData, 8);
-                int id = BitConverter.ToInt32(rpcData, 12);
+                var rpcBytes = Take(rpcData, length + HEADER_LENGTH);
+                rpcData = Trim(rpcData, length + HEADER_LENGTH);
 
-                if (rpcData.Length < length + 16)
-                {
-                    Panic($"RPC data is incomplete! Expected at least {length + 16} bytes, found {rpcData.Length}!");
-                    return;
-                }
+                if (targetPlayerId != ushort.MaxValue && targetPlayerId != localPlayer.playerId) continue; // This RPC isn't for us
 
-                var rpcBytes = Take(rpcData, length + 16);
-                rpcData = Trim(rpcData, length + 16);
-
-                if (targetPlayerId != -1 && targetPlayerId != Networking.LocalPlayer.playerId) continue; // This RPC isn't for us
-
-                _DecodeRPC(id, Trim(rpcBytes, 16));
+                // _DecodeRPC(id, Trim(rpcBytes, HEADER_LENGTH));
+                rpcCount++;
             }
+
+            if (debugger != null) debugger.OnVariableSyncReceived(Networking.GetOwner(gameObject), result.sendTime, result.receiveTime, rpcCount);
         }
 
         private void Panic(string message)
@@ -239,23 +219,25 @@ namespace DizzyRPC
         {
             // Debug.Log($"Encoding type: {o.GetType().FullName}");
             var type = o.GetType();
-            if (type==typeof(bool)) return BitConverter.GetBytes((bool)o);
-            if (type==typeof(sbyte)) return new []{(byte)(sbyte)o};
-            if (type==typeof(byte)) return new []{(byte)o};
-            if (type==typeof(short)) return BitConverter.GetBytes((short)o);
-            if (type==typeof(int)) return BitConverter.GetBytes((int)o);
-            if (type==typeof(uint)) return BitConverter.GetBytes((uint)o);
-            if (type==typeof(long)) return BitConverter.GetBytes((long)o);
-            if (type==typeof(ulong)) return BitConverter.GetBytes((ulong)o);
-            if (type==typeof(float)) return BitConverter.GetBytes((float)o);
-            if (type==typeof(double)) return BitConverter.GetBytes((double)o);
-            if (type==typeof(char)) return BitConverter.GetBytes((char)o);
+            if (type == typeof(bool)) return BitConverter.GetBytes((bool)o);
+            if (type == typeof(sbyte)) return new[] { (byte)(sbyte)o };
+            if (type == typeof(byte)) return new[] { (byte)o };
+            if (type == typeof(short)) return BitConverter.GetBytes((short)o);
+            if (type == typeof(ushort)) return BitConverter.GetBytes((ushort)o);
+            if (type == typeof(int)) return BitConverter.GetBytes((int)o);
+            if (type == typeof(uint)) return BitConverter.GetBytes((uint)o);
+            if (type == typeof(long)) return BitConverter.GetBytes((long)o);
+            if (type == typeof(ulong)) return BitConverter.GetBytes((ulong)o);
+            if (type == typeof(float)) return BitConverter.GetBytes((float)o);
+            if (type == typeof(double)) return BitConverter.GetBytes((double)o);
+            if (type == typeof(char)) return BitConverter.GetBytes((char)o);
             if (type == typeof(string))
             {
                 string s = (string)o;
                 return Combine(BitConverter.GetBytes(s.Length), Encoding.UTF8.GetBytes(s));
             }
-            if (type==typeof(Vector2))
+
+            if (type == typeof(Vector2))
             {
                 var vec = (Vector2)o;
                 var bytes = new byte[4 * 2];
@@ -263,7 +245,8 @@ namespace DizzyRPC
                 Buffer.BlockCopy(BitConverter.GetBytes(vec.y), 0, bytes, 4, 4);
                 return bytes;
             }
-            if (type==typeof(Vector3))
+
+            if (type == typeof(Vector3))
             {
                 var vec = (Vector3)o;
                 var bytes = new byte[4 * 3];
@@ -272,7 +255,8 @@ namespace DizzyRPC
                 Buffer.BlockCopy(BitConverter.GetBytes(vec.z), 0, bytes, 4 * 2, 4);
                 return bytes;
             }
-            if (type==typeof(Vector4))
+
+            if (type == typeof(Vector4))
             {
                 var vec = (Vector4)o;
                 var bytes = new byte[4 * 4];
@@ -282,7 +266,8 @@ namespace DizzyRPC
                 Buffer.BlockCopy(BitConverter.GetBytes(vec.w), 0, bytes, 4 * 3, 4);
                 return bytes;
             }
-            if (type==typeof(Quaternion))
+
+            if (type == typeof(Quaternion))
             {
                 var q = (Quaternion)o;
                 var bytes = new byte[4 * 4];
@@ -292,7 +277,8 @@ namespace DizzyRPC
                 Buffer.BlockCopy(BitConverter.GetBytes(q.w), 0, bytes, 4 * 3, 4);
                 return bytes;
             }
-            if (type==typeof(Color))
+
+            if (type == typeof(Color))
             {
                 var c = (Color)o;
                 var bytes = new byte[4 * 4];
@@ -302,8 +288,8 @@ namespace DizzyRPC
                 Buffer.BlockCopy(BitConverter.GetBytes(c.a), 0, bytes, 4 * 3, 4);
                 return bytes;
             }
-            
-            if (type==typeof(Color32))
+
+            if (type == typeof(Color32))
             {
                 var c = (Color32)o;
                 return new[] { c.r, c.g, c.b, c.a };
@@ -465,16 +451,13 @@ namespace DizzyRPC
         }
 
         #endregion
-
         #region Generated RPCs (DO NOT EDIT)
-        
-        
-        
-        
-        private void _DecodeRPC(int id, byte[] data) {
-            switch(id){
-            }
-        }
+        public const int RPC_RoutedRPCExample__SomeRPC = 0;
+        public const int RPC_SingletonRPCExample__Example = 1;
+        public const int RPC_SingletonRPCExample__ExampleWithParameters = 2;
+        public const int RPC_SingletonRPCExample__ExampleVariableRPC = 3;
+        public const int RPC_GraphRPCExample__asdf = 4;
+        public const int RPC_RoutedGraphRPCExample__asdf = 5;
         
         #endregion
     }

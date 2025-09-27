@@ -220,17 +220,14 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   serializationData:
-    SerializedFormat: 2
-    SerializedBytes: 
+    SerializedFormat: 0
+    SerializedBytes: 2d010600000070006c006100790065007200
     ReferencedUnityObjects: []
     SerializedBytesString: 
     Prefab: {fileID: 0}
     PrefabModificationsReferencedUnityObjects: []
     PrefabModifications: []
-    SerializationNodes:
-    - Name: player
-      Entry: 6
-      Data: 
+    SerializationNodes: []
   _udonSharpBackingUdonBehaviour: {fileID: 4330534924805324969}
   marker: {fileID: 732691252467372597}
   trail: {fileID: 1177066834232860478}

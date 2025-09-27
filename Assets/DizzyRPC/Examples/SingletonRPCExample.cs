@@ -30,6 +30,13 @@ namespace DizzyRPC.Examples
             Debug.Log($"[DizzyRPC] Variable RPC Example - Hello, world! - {parameter}");
         }
 
+        [RPCHook("GraphRPCExample", "_asdf")]
+        public bool _HookTest(string param1)
+        {
+            Debug.Log($"[DizzyRPC] Hook Test: {param1}");
+            return true;
+        }
+
         private int seconds = 0;
         private int i = 0;
 
@@ -48,10 +55,15 @@ namespace DizzyRPC.Examples
 
             if (Input.GetKey(KeyCode.V)) _Send_ExampleVariableRPC(null, seconds);
         }
-
         #region Generated RPCs (DO NOT EDIT)
         [UnityEngine.SerializeField] private DizzyRPC.RPCManager _rpc_manager;
         
+        public void _Send_Example(VRC.SDKBase.VRCPlayerApi target) {
+        }
+        public void _Send_ExampleWithParameters(VRC.SDKBase.VRCPlayerApi target, System.Int32 parameter) {
+        }
+        public void _Send_ExampleVariableRPC(VRC.SDKBase.VRCPlayerApi target, System.Int32 parameter) {
+        }
         #endregion
     }
 }

@@ -3,28 +3,23 @@ using System;
 namespace DizzyRPC.Attribute
 {
     [AttributeUsage(AttributeTargets.Method)]
-    public class RPCMethodAttribute : System.Attribute
+    public class RPCMethodAttribute : System.Attribute, RPCMethodDefinition
     {
-        public readonly int rateLimitPerSecond;
-        public readonly bool enforceSecure;
-        public readonly bool allowDropping;
-        public readonly bool requireLowLatency;
-        public readonly RPCSyncMode mode;
+        public int RateLimitPerSecond { get; }
+        public bool EnforceSecure { get; }
+        public bool AllowDropping { get; }
+        public bool RequireLowLatency { get; }
+        public bool IgnoreDuplicates { get; }
+        public RPCSyncMode Mode { get; }
 
-        public RPCMethodAttribute(int rateLimitPerSecond = -1, bool enforceSecure = false, bool allowDropping = true, bool requireLowLatency = false, RPCSyncMode mode = RPCSyncMode.Automatic)
+        public RPCMethodAttribute(int rateLimitPerSecond = -1, bool enforceSecure = false, bool allowDropping = true, bool requireLowLatency = false, bool ignoreDuplicates = false, RPCSyncMode mode = RPCSyncMode.Automatic)
         {
-            this.rateLimitPerSecond = rateLimitPerSecond;
-            this.enforceSecure = enforceSecure;
-            this.allowDropping = allowDropping;
-            this.requireLowLatency = requireLowLatency;
-            this.mode = mode;
+            RateLimitPerSecond = rateLimitPerSecond;
+            EnforceSecure = enforceSecure;
+            AllowDropping = allowDropping;
+            RequireLowLatency = requireLowLatency;
+            IgnoreDuplicates = ignoreDuplicates;
+            Mode = mode;
         }
-    }
-        
-    public enum RPCSyncMode
-    {
-        Automatic,
-        Event,
-        Variable
     }
 }

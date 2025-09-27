@@ -3,6 +3,7 @@ using DizzyRPC.Attribute;
 using UdonSharp;
 using UnityEngine;
 using VRC.SDKBase;
+using VRC.Udon;
 
 namespace DizzyRPC.Examples
 {
@@ -13,7 +14,7 @@ namespace DizzyRPC.Examples
         [RPCMethod(mode:RPCSyncMode.Event)]
         public void _SomeRPC(string message)
         {
-            // Debug.Log($"[DizzyRPC] {gameObject.name}: Received {message}");
+            Debug.Log($"[DizzyRPC] {gameObject.name}: Received {message}");
         }
 
         private int seconds = 0;
@@ -33,6 +34,8 @@ namespace DizzyRPC.Examples
         #region Generated RPCs (DO NOT EDIT)
         [UnityEngine.SerializeField] private DizzyRPC.RPCManager _rpc_manager;
         
+        public void _Send_SomeRPC(VRC.SDKBase.VRCPlayerApi target, System.String message) {
+        }
         #endregion
     }
 }
