@@ -180,7 +180,7 @@ namespace DizzyRPC.Editor
                         continue;
                     }
 
-                    anyChanges |= GenerateRPCs(graph, program, mode);
+                    anyChanges |= GenerateRPCs(graph.guid, program, mode);
                 }
             }
             finally
@@ -712,8 +712,9 @@ namespace DizzyRPC.Editor
                                     generatedLines.Add($"    router_{rpc.router.id}.SetProgramVariable(\"_RPC_ROUTER_id\", _id);");
                                     for (int i = 0; i < callParameters.Count; i++)
                                     {
-                                        generatedLines.Add($"    router_{rpc.router.id}.SetProgramVariable(\"_RPC_ROUTER_Param{i+1}\", {callParameters[i]});");
+                                        generatedLines.Add($"    router_{rpc.router.id}.SetProgramVariable(\"_RPC_ROUTER_Param{i + 1}\", {callParameters[i]});");
                                     }
+
                                     generatedLines.Add($"    router_{rpc.router.id}.SendCustomEvent(\"_RPC_RouteRPC\");");
                                 }
                                 else
@@ -810,6 +811,7 @@ namespace DizzyRPC.Editor
                                     {
                                         generatedLines.Add($"    router_{rpc.router.id}.SetProgramVariable(\"_RPC_ROUTER_Param{i}\", {callParameters[i]});");
                                     }
+
                                     generatedLines.Add($"    router_{rpc.router.id}.SendCustomEvent(\"_RPC_RouteRPC\");");
                                 }
                                 else
@@ -899,10 +901,138 @@ namespace DizzyRPC.Editor
             return true;
         }
 
-        private static bool GenerateRPCs(RPCGraphData graph, UdonGraphProgramAsset program, GenerationMode mode)
+        private static bool GenerateRPCs(string guid, UdonGraphProgramAsset program, GenerationMode mode)
         {
+            var generator = new UdonGraphGen(program);
+            if (mode == GenerationMode.Clean)
+            {
+                //TODO cleanup!
+            }
+            else
+            {
+                //TODO replace ALL SendCustomNetworkEvent with SendCustomEvent, including internally.
+                // (this allows for any variable types and no variable count limits)
+                foreach (var v in generator.Variables.Where(v => v.Name.StartsWith($"_RPC"))) v.Delete();
+
+                foreach (GeneratedRouter router in generatedRouters)
+                {
+                    if (router.routerType == typeof(UdonBehaviour) && router.routerGraphName == program.name)
+                    {
+                        // Generate router variables
+                        generator.AddVariable<string>("_RPC_ROUTER_target");
+                        generator.AddVariable(router.idType, "_RPC_ROUTER_id");
+                        for (int i = 1; i <= NetworkEventParameterLimit - 1; i++) // -1 because of the routing ID
+                        {
+                            generator.AddVariable<object>($"_RPC_ROUTER_Param{i}");
+                        }
+                    }
+                }
+
+                bool hasAnyRPCOrHook = false;
+                foreach (GeneratedRPC rpc in generatedRPCs)
+                {
+                    if (rpc.type == typeof(UdonBehaviour) && rpc.graphName == program.name)
+                    {
+                        hasAnyRPCOrHook = true;
+                        foreach (var parameter in rpc.methodParameters)
+                        {
+                            generator.AddVariable(parameter.type, $"_RPC_{rpc.methodName}_{parameter.name}");
+                        }
+                    }
+
+                    foreach (GeneratedRPCHook hook in rpc.hooks)
+                    {
+                        if (hook.singleton.type == typeof(UdonBehaviour) && hook.singleton.udonGraphGuid == guid)
+                        {
+                            hasAnyRPCOrHook = true;
+                            foreach (var parameter in hook.methodParameters)
+                            {
+                                generator.AddVariable(parameter.type, $"_RPC_HOOK_{hook.methodName}_{parameter.name}");
+                            }
+                        }
+                    }
+                }
+
+                if (hasAnyRPCOrHook) generator.AddVariable<UdonBehaviour>("_RPC_MANAGER", true);
+            }
+
             return false;
+            // List<string> generatedLines = new();
+            //
+            // if (mode != GenerationMode.Clean)
+            // {
+            //     generatedLines.Add($"[{typeof(SerializeField).FullName}] private {typeof(RPCManager).FullName} _rpc_manager;");
+            //     if (mode == GenerationMode.Build)
+            //     {
+            //         foreach (GeneratedRouter router in generatedRouters)
+            //         {
+            //             if (router.routableType == type) generatedLines.Add($"[{typeof(SerializeField).FullName}] private {router.routerType.FullName} _rpc_router{router.id};");
+            //         }
+            //     }
+            //
+            //     generatedLines.Add("");
+            //
+            //     foreach (GeneratedRPC rpc in generatedRPCs)
+            //     {
+            //         var modeName = rpc.mode switch
+            //         {
+            //             RPCSyncMode.Event => "Event",
+            //             RPCSyncMode.Variable => "Variable",
+            //             _ => ""
+            //         };
+            //
+            //         if (rpc.router != null && rpc.router.routableType != type) continue;
+            //         if (rpc.singleton != null && rpc.singleton.type != type) continue;
+            //
+            //         List<string> methodParameters = new();
+            //         List<string> localCallParameters = new();
+            //         List<string> remoteCallParameters = new();
+            //
+            //         methodParameters.Add($"{typeof(VRCPlayerApi).FullName} target");
+            //         remoteCallParameters.Add("target");
+            //         remoteCallParameters.Add($"{typeof(RPCChannel).FullName}.RPC_{rpc.TypeName}_{rpc.methodName}");
+            //         if (rpc.mode == RPCSyncMode.Variable) remoteCallParameters.Add(rpc.ignoreDuplicates ? "true" : "false");
+            //
+            //         if (rpc.router != null) remoteCallParameters.Add($"_rpc_router{rpc.router.id}._GetId(this)");
+            //
+            //         foreach (var parameter in rpc.methodParameters)
+            //         {
+            //             methodParameters.Add($"{parameter.type.FullName} {parameter.name}");
+            //             localCallParameters.Add($"{parameter.name}");
+            //             remoteCallParameters.Add($"{parameter.name}");
+            //         }
+            //
+            //         generatedLines.Add($"public void _SendRPC{rpc.methodName}({string.Join(", ", methodParameters)}) {{");
+            //         if (mode == GenerationMode.Build)
+            //         {
+            //             generatedLines.Add($"    _rpc_manager._Send{modeName}({string.Join(", ", remoteCallParameters)});");
+            //             if (rpc.mode == RPCSyncMode.Variable) generatedLines.Add($"    if(target==null||target=={typeof(Networking).FullName}.LocalPlayer){rpc.methodName}({string.Join(", ", localCallParameters)});"); // Ensure local calls are not forgotten for variables
+            //         }
+            //
+            //         generatedLines.Add($"}}");
+            //     }
+            // }
+            //
+            // var newText = RegenerateFile(path, generatedLines);
+            // if (newText == null)
+            // {
+            //     throw new Exception($"Could not regenerate RPCs in file: {path}!");
+            // }
+            //
+            // var oldText = File.ReadAllText(path);
+            // if (oldText == newText)
+            // {
+            //     Debug.Log($"[DizzyRPC] Skipping regeneration of file: {path} - File has not changed.");
+            //     return false;
+            // }
+            //
+            // Debug.Log($"[DizzyRPC] Regenerating contents of file: {path}");
+            //
+            // File.WriteAllText(path, newText);
+            // return true;
         }
+
+        private const int NetworkEventParameterLimit = 8;
 
         private const string regionTag = "Generated RPCs (DO NOT EDIT)";
 
