@@ -44,24 +44,24 @@ namespace DizzyRPC.Examples
             if ((int)Time.time > seconds || Input.GetKey(KeyCode.T))
             {
                 seconds = (int)Time.time;
-                _Send_ExampleWithParameters(null, i++);
-                _Send_Example(null);
+                _SendRPC_ExampleWithParameters(null, i++);
+                _SendRPC_Example(null);
                 if (i > 4)
                 {
                     i = 0;
                 }
             }
 
-            if (Input.GetKey(KeyCode.V)) _Send_ExampleVariableRPC(null, seconds);
+            if (Input.GetKey(KeyCode.V)) _SendRPC_ExampleVariableRPC(null, seconds);
         }
         #region Generated RPCs (DO NOT EDIT)
         [UnityEngine.SerializeField] private DizzyRPC.RPCManager _rpc_manager;
         
-        public void _Send_Example(VRC.SDKBase.VRCPlayerApi target) {
+        public void _SendRPC_Example(VRC.SDKBase.VRCPlayerApi target) {
         }
-        public void _Send_ExampleWithParameters(VRC.SDKBase.VRCPlayerApi target, System.Int32 parameter) {
+        public void _SendRPC_ExampleWithParameters(VRC.SDKBase.VRCPlayerApi target, System.Int32 parameter) {
         }
-        public void _Send_ExampleVariableRPC(VRC.SDKBase.VRCPlayerApi target, System.Int32 parameter) {
+        public void _SendRPC_ExampleVariableRPC(VRC.SDKBase.VRCPlayerApi target, System.Int32 parameter) {
         }
         #endregion
     }

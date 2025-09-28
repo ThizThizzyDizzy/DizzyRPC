@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using DizzyRPC.Attribute;
 using UnityEditor;
 using UnityEngine;
+using VRC.SDKBase;
 using VRC.Udon;
 using VRC.Udon.Editor.ProgramSources.UdonGraphProgram;
 using VRC.Udon.Graph;
@@ -12,20 +13,23 @@ namespace DizzyRPC.Editor
     [InitializeOnLoad]
     public static class RPCGraphEditor
     {
-        public static readonly RPCGraphDataObject graphDataObject;
-        public static readonly RPCGraphDataSerializedObject graphDataSerializedObject;
+        public static readonly RPCGraphDataStorage graphDataStorage;
+        public static readonly SerializedRPCGraphDataStorage serializedGraphDataStorage;
+        
+        // All types that can be used for VRC custom network events
+        private static readonly Type[] validRouterIdTypes = { typeof(short), typeof(ushort), typeof(char), typeof(sbyte), typeof(byte), typeof(long), typeof(ulong), typeof(double), typeof(bool), typeof(float), typeof(int), typeof(uint), typeof(Vector2), typeof(Vector3), typeof(Vector4), typeof(Quaternion), typeof(Color), typeof(Color32), typeof(short[]), typeof(ushort[]), typeof(char[]), typeof(sbyte[]), typeof(byte[]), typeof(long[]), typeof(ulong[]), typeof(double[]), typeof(bool[]), typeof(float[]), typeof(int[]), typeof(uint[]), typeof(Vector2[]), typeof(Vector3[]), typeof(Vector4[]), typeof(Quaternion[]), typeof(Color[]), typeof(Color32[]), typeof(string), typeof(VRCUrl), typeof(VRCUrl[]), typeof(string[]) };
 
         static RPCGraphEditor()
         {
             UnityEditor.Editor.finishedDefaultHeaderGUI += OnPostHeaderGUI;
-            graphDataObject = AssetDatabase.LoadAssetAtPath<RPCGraphDataObject>("Assets/DizzyRPC/RPCGraphData.asset");
-            if (graphDataObject == null)
+            graphDataStorage = AssetDatabase.LoadAssetAtPath<RPCGraphDataStorage>("Assets/DizzyRPC/RPCGraphData.asset");
+            if (graphDataStorage == null)
             {
-                graphDataObject = ScriptableObject.CreateInstance<RPCGraphDataObject>();
-                AssetDatabase.CreateAsset(graphDataObject, "Assets/DizzyRPC/RPCGraphData.asset");
+                graphDataStorage = ScriptableObject.CreateInstance<RPCGraphDataStorage>();
+                AssetDatabase.CreateAsset(graphDataStorage, "Assets/DizzyRPC/RPCGraphData.asset");
             }
 
-            graphDataSerializedObject = new RPCGraphDataSerializedObject(graphDataObject);
+            serializedGraphDataStorage = new SerializedRPCGraphDataStorage(graphDataStorage);
         }
 
         public static string GetCustomEventName(this UdonNodeData eventNode)
@@ -38,9 +42,9 @@ namespace DizzyRPC.Editor
 
         private static void SaveRPCGraphData()
         {
-            graphDataSerializedObject.OnSave();
-            graphDataSerializedObject.ApplyModifiedProperties();
-            AssetDatabase.SaveAssetIfDirty(graphDataObject);
+            serializedGraphDataStorage.OnSave();
+            serializedGraphDataStorage.ApplyModifiedProperties();
+            AssetDatabase.SaveAssetIfDirty(graphDataStorage);
             RPCCompiler.OnGraphRPCSettingsChanged();
         }
 
@@ -49,8 +53,8 @@ namespace DizzyRPC.Editor
             if (editor.target is UdonGraphProgramAsset program)
             {
 
-                graphDataSerializedObject.Update();
-                var data = graphDataSerializedObject.GetGraphData(program);
+                serializedGraphDataStorage.Update();
+                var data = serializedGraphDataStorage.GetGraphData(program);
                 EditorGUI.BeginChangeCheck();
 
                 EditorGUILayout.LabelField("DizzyRPC Settings", EditorStyles.boldLabel);
@@ -95,9 +99,28 @@ namespace DizzyRPC.Editor
                     }
                     EditorGUI.EndDisabledGroup();
                     GUI.backgroundColor = backgroundColorWas;
+
+                    EditorGUILayout.EndHorizontal();
+                    EditorGUILayout.BeginHorizontal();
+                    EditorGUILayout.LabelField("Routing ID type");
+                    if (EditorGUILayout.DropdownButton(new GUIContent($"{data.routerIdType?.FullName}"), FocusType.Keyboard))
+                    {
+                        var menu = new GenericMenu();
+                        foreach (var type in validRouterIdTypes)
+                        {
+                            menu.AddItem(new GUIContent($"{type.FullName}"), false, () =>
+                            {
+                                data.routerIdType = type;
+                                SaveRPCGraphData();
+                            });
+                        }
+
+                        menu.ShowAsContext();
+                    }
                 }
                 EditorGUILayout.EndHorizontal();
                 
+                if (data.router&&data.routerIdType==null) EditorGUILayout.HelpBox("Routing ID type must be set!", MessageType.Error);
                 if (data.router&&!data.singleton) EditorGUILayout.HelpBox("A router must also be a singleton!", MessageType.Error);
                 if (!data.singleton && data.rpcMethods.Length>0)
                 {

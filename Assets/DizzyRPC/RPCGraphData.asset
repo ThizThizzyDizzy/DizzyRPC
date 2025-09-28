@@ -17,6 +17,7 @@ MonoBehaviour:
     singleton: 1
     router: 1
     routerTypeName: RoutedGraphRPCExample
+    routerIdType: System.Int32, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089
     rpcMethods:
     - name: _asdf
       rateLimitPerSecond: -1
@@ -36,10 +37,12 @@ MonoBehaviour:
       methodName: _asdf
       parameterNames:
       - param1
+      - param1
   - guid: 4ec182d9eaebcbd4c87201d63ddfddaf
     singleton: 0
     router: 0
     routerTypeName: DizzyRPC.Examples.RoutedRPCExample
+    routerIdType: 
     rpcMethods:
     - name: _asdf
       rateLimitPerSecond: 0

@@ -8,19 +8,19 @@ using Object = UnityEngine.Object;
 
 namespace DizzyRPC.Editor
 {
-    public class RPCGraphDataObject : ScriptableObject
+    public class RPCGraphDataStorage : ScriptableObject
     {
         [SerializeField]
         public RPCGraphData[] graphData = new RPCGraphData[0];
     }
 
-    public class RPCGraphDataSerializedObject : SerializedObject
+    public class SerializedRPCGraphDataStorage : SerializedObject
     {
         public readonly SerializedProperty graphData;
 
-        public RPCGraphDataSerializedObject(Object obj) : base(obj)
+        public SerializedRPCGraphDataStorage(Object obj) : base(obj)
         {
-            graphData = FindProperty(nameof(RPCGraphDataObject.graphData));
+            graphData = FindProperty(nameof(RPCGraphDataStorage.graphData));
         }
 
         public RPCGraphDataSerializedProperty GetGraphData(UdonGraphProgramAsset graphAsset)
@@ -76,7 +76,9 @@ namespace DizzyRPC.Editor
         public string guid;
         public bool singleton;
         public bool router;
-        public string routerTypeName;
+        public string routerTypeName = typeof(int).AssemblyQualifiedName;
+        public string routerIdType;
+        public Type RouterIdType { get => Type.GetType(routerIdType); set => routerIdType = value.AssemblyQualifiedName; }
         public List<RPCGraphMethodData> rpcMethods = new();
         public List<RPCGraphHookData> rpcHooks = new();
 
@@ -94,6 +96,7 @@ namespace DizzyRPC.Editor
         private readonly SerializedProperty _singleton;
         private readonly SerializedProperty _router;
         private readonly SerializedProperty _routerTypeName;
+        private readonly SerializedProperty _routerIdType;
         private readonly SerializedProperty _rpcMethods;
         private readonly SerializedProperty _rpcHooks;
 
@@ -103,6 +106,7 @@ namespace DizzyRPC.Editor
         public bool singleton { get => _singleton.boolValue; set => _singleton.boolValue = value; }
         public bool router { get => _router.boolValue; set => _router.boolValue = value; }
         public string routerTypeName { get => _routerTypeName.stringValue; set => _routerTypeName.stringValue = value; }
+        public Type routerIdType { get => Type.GetType(_routerIdType.stringValue); set => _routerIdType.stringValue = value.AssemblyQualifiedName; }
 
         public RPCGraphDataSerializedProperty(SerializedProperty prop)
         {
@@ -111,6 +115,7 @@ namespace DizzyRPC.Editor
             _singleton = prop.FindPropertyRelative(nameof(RPCGraphData.singleton));
             _router = prop.FindPropertyRelative(nameof(RPCGraphData.router));
             _routerTypeName = prop.FindPropertyRelative(nameof(RPCGraphData.routerTypeName));
+            _routerIdType = prop.FindPropertyRelative(nameof(RPCGraphData.routerIdType));
             _rpcMethods = prop.FindPropertyRelative(nameof(RPCGraphData.rpcMethods));
             _rpcHooks = prop.FindPropertyRelative(nameof(RPCGraphData.rpcHooks));
             RefreshMethodsAndHooksLists();

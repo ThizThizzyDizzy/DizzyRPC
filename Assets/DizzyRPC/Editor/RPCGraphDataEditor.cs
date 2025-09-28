@@ -2,7 +2,7 @@ using UnityEditor;
 
 namespace DizzyRPC.Editor
 {
-    [CustomEditor(typeof(RPCGraphDataObject))]
+    [CustomEditor(typeof(RPCGraphDataStorage))]
     public class RPCGraphDataEditor : UnityEditor.Editor
     {
         public override void OnInspectorGUI()

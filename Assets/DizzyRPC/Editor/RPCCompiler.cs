@@ -170,6 +170,18 @@ namespace DizzyRPC.Editor
                 {
                     anyChanges |= GenerateRPCs(type, FindMonoAssetPath(type), GenerationTarget.MethodContainer, mode);
                 }
+
+                foreach (var graph in RPCGraphEditor.graphDataStorage.graphData)
+                {
+                    var program = AssetDatabase.LoadAssetAtPath<UdonGraphProgramAsset>(AssetDatabase.GUIDToAssetPath(graph.guid));
+                    if (program == null)
+                    {
+                        Debug.LogWarning($"[DizzyRPC] Skipping graph {graph.guid} because no matching Udon Graph Program Asset was found.");
+                        continue;
+                    }
+
+                    anyChanges |= GenerateRPCs(graph, program, mode);
+                }
             }
             finally
             {
@@ -210,8 +222,8 @@ namespace DizzyRPC.Editor
             List<Type> singletonTypes = new();
             List<Type> types = new(assembly.GetTypes().Where((t) => t.IsClass && !t.IsAbstract));
 
-            var graphDataObject = AssetDatabase.LoadAssetAtPath<RPCGraphDataObject>("Assets/DizzyRPC/RPCGraphData.asset");
-            
+            var graphDataObject = AssetDatabase.LoadAssetAtPath<RPCGraphDataStorage>("Assets/DizzyRPC/RPCGraphData.asset");
+
             // Routable RPC Containers (These must be first to ensure they are set even if compilation fails)
             foreach (var type in types)
             {
@@ -237,9 +249,9 @@ namespace DizzyRPC.Editor
                     routableRPCContainers.Add(type.FullName);
                 }
             }
-            
+
             // Udon Graph Routable RPC Containers
-            foreach (var graph in RPCGraphEditor.graphDataObject.graphData)
+            foreach (var graph in RPCGraphEditor.graphDataStorage.graphData)
             {
                 if (graph.rpcMethods.Count > 0 && !graph.singleton)
                 {
@@ -262,7 +274,7 @@ namespace DizzyRPC.Editor
                         idType = genericArgs[1]
                     });
                 }
-                
+
                 // U# routers routing Udon Graph RPCs
                 if (IsDerivedFromGeneric(type, typeof(RPCRouter<>), out var actualBaseGraph))
                 {
@@ -279,12 +291,12 @@ namespace DizzyRPC.Editor
                     });
                 }
             }
-            
+
             // Udon Graph Routers
             foreach (var graph in graphDataObject.graphData)
             {
                 if (!graph.router) continue;
-                
+
                 var path = AssetDatabase.GUIDToAssetPath(graph.guid);
                 if (path == "") continue;
 
@@ -295,14 +307,14 @@ namespace DizzyRPC.Editor
                 {
                     if (type.FullName == graph.routerTypeName) routableType = type;
                 }
-                
+
                 generatedRouters.Add(new GeneratedRouter()
                 {
                     id = generatedRouters.Count,
                     routerType = typeof(UdonBehaviour),
                     routableType = routableType,
                     routableGraphName = graph.routerTypeName,
-                    idType = typeof(int) //TODO ID type (lookup from event in graph)
+                    idType = graph.RouterIdType
                 });
             }
 
@@ -468,6 +480,7 @@ namespace DizzyRPC.Editor
                             break;
                         }
                     }
+
                     if (generated) continue;
 
                     throw new Exception($"Could not map RPCs to {method.name} in {program.name}!");
@@ -667,8 +680,7 @@ namespace DizzyRPC.Editor
                                 {
                                     hookCallParameters.Insert(0, $"{typeof(NetworkEventTarget)}.{nameof(NetworkEventTarget.Self)}");
                                     hookCallParameters.Insert(1, $"\"{hook.methodName}\"");
-                                    generatedLines.Add($"    singleton_{hook.singleton.id}.SendCustomNetworkEvent({string.Join(", ", hookCallParameters)});");
-                                    
+
                                     generatedLines.Add($"}}");
                                     generatedLines.Add($"public void _RPC_{rpc.id}_PostHook_{hook.singleton.id}({string.Join(", ", methodParameters)}) {{");
                                 }
@@ -696,10 +708,13 @@ namespace DizzyRPC.Editor
                             {
                                 if (rpc.router.routerType == typeof(UdonBehaviour))
                                 {
-                                    callParameters.Insert(0, $"{typeof(NetworkEventTarget)}.{nameof(NetworkEventTarget.Self)}");
-                                    callParameters.Insert(1, $"\"_Route_{rpc.id}\"");
-                                    callParameters.Insert(2, $"_id");
-                                    generatedLines.Add($"    router_{rpc.router.id}.SendCustomNetworkEvent({string.Join(", ", callParameters)});");
+                                    generatedLines.Add($"    router_{rpc.router.id}.SetProgramVariable(\"_RPC_ROUTER_Target\", \"_Route_{rpc.id}\");");
+                                    generatedLines.Add($"    router_{rpc.router.id}.SetProgramVariable(\"_RPC_ROUTER_id\", _id);");
+                                    for (int i = 0; i < callParameters.Count; i++)
+                                    {
+                                        generatedLines.Add($"    router_{rpc.router.id}.SetProgramVariable(\"_RPC_ROUTER_Param{i+1}\", {callParameters[i]});");
+                                    }
+                                    generatedLines.Add($"    router_{rpc.router.id}.SendCustomEvent(\"_RPC_RouteRPC\");");
                                 }
                                 else
                                 {
@@ -761,7 +776,7 @@ namespace DizzyRPC.Editor
                                     hookCallParameters.Insert(0, $"{typeof(NetworkEventTarget)}.{nameof(NetworkEventTarget.Self)}");
                                     hookCallParameters.Insert(1, $"\"{hook.methodName}\"");
                                     generatedLines.Add($"    singleton_{hook.singleton.id}.SendCustomNetworkEvent({string.Join(", ", hookCallParameters)});");
-                                    
+
                                     generatedLines.Add($"}}");
                                     generatedLines.Add($"public void _RPC_{rpc.id}_PostHook_{hook.singleton.id}({string.Join(", ", methodParameters)}) {{");
                                 }
@@ -787,7 +802,20 @@ namespace DizzyRPC.Editor
 
                             if (rpc.router != null)
                             {
-                                generatedLines.Add($"    router_{rpc.router.id}._Route(_id).{rpc.methodName}({string.Join(", ", callParameters)});");
+                                if (rpc.router.routerType == typeof(UdonBehaviour))
+                                {
+                                    generatedLines.Add($"    router_{rpc.router.id}.SetProgramVariable(\"_RPC_ROUTER_Target\", \"_Route_{rpc.id}\");");
+                                    generatedLines.Add($"    router_{rpc.router.id}.SetProgramVariable(\"_RPC_ROUTER_id\", _id);");
+                                    for (int i = 0; i < callParameters.Count; i++)
+                                    {
+                                        generatedLines.Add($"    router_{rpc.router.id}.SetProgramVariable(\"_RPC_ROUTER_Param{i}\", {callParameters[i]});");
+                                    }
+                                    generatedLines.Add($"    router_{rpc.router.id}.SendCustomEvent(\"_RPC_RouteRPC\");");
+                                }
+                                else
+                                {
+                                    generatedLines.Add($"    router_{rpc.router.id}._Route(_id).{rpc.methodName}({string.Join(", ", callParameters)});");
+                                }
                             }
 
                             generatedLines.Add($"}}");
@@ -836,10 +864,10 @@ namespace DizzyRPC.Editor
                                 remoteCallParameters.Add($"{parameter.name}");
                             }
 
-                            generatedLines.Add($"public void _Send{rpc.methodName}({string.Join(", ", methodParameters)}) {{");
+                            generatedLines.Add($"public void _SendRPC{rpc.methodName}({string.Join(", ", methodParameters)}) {{");
                             if (mode == GenerationMode.Build)
                             {
-                                generatedLines.Add($"    _rpc_manager.Send{modeName}({string.Join(", ", remoteCallParameters)});");
+                                generatedLines.Add($"    _rpc_manager._Send{modeName}({string.Join(", ", remoteCallParameters)});");
                                 if (rpc.mode == RPCSyncMode.Variable) generatedLines.Add($"    if(target==null||target=={typeof(Networking).FullName}.LocalPlayer){rpc.methodName}({string.Join(", ", localCallParameters)});"); // Ensure local calls are not forgotten for variables
                             }
 
@@ -869,6 +897,11 @@ namespace DizzyRPC.Editor
 
             File.WriteAllText(path, newText);
             return true;
+        }
+
+        private static bool GenerateRPCs(RPCGraphData graph, UdonGraphProgramAsset program, GenerationMode mode)
+        {
+            return false;
         }
 
         private const string regionTag = "Generated RPCs (DO NOT EDIT)";
