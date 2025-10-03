@@ -36,6 +36,13 @@ namespace DizzyRPC.Examples
             return true;
         }
 
+        [RPCHook("RoutedGraphRPCExample", "_asdf")]
+        public bool _Hook2Test(string param1)
+        {
+            Debug.Log($"[DizzyRPC] Hook Test: {param1}");
+            return true;
+        }
+
         private int seconds = 0;
         private int i = 0;
 
@@ -59,9 +66,9 @@ namespace DizzyRPC.Examples
         
         public void _SendRPC_Example(VRC.SDKBase.VRCPlayerApi target) {
         }
-        public void _SendRPC_ExampleWithParameters(VRC.SDKBase.VRCPlayerApi target, System.Int32 parameter) {
+        public void _SendRPC_ExampleWithParameters(VRC.SDKBase.VRCPlayerApi target, System.Int32 p_parameter) {
         }
-        public void _SendRPC_ExampleVariableRPC(VRC.SDKBase.VRCPlayerApi target, System.Int32 parameter) {
+        public void _SendRPC_ExampleVariableRPC(VRC.SDKBase.VRCPlayerApi target, System.Int32 p_parameter) {
         }
         #endregion
     }

@@ -1,9 +1,12 @@
 using System;
 using System.Text;
 using DizzyRPC.Debugger;
+using DizzyRPC.Examples;
 using UdonSharp;
 using UnityEngine;
+using VRC.SDK3.UdonNetworkCalling;
 using VRC.SDKBase;
+using VRC.Udon;
 using VRC.Udon.Common;
 using VRC.Udon.Common.Interfaces;
 
@@ -453,6 +456,7 @@ namespace DizzyRPC
         public const int RPC_SingletonRPCExample__ExampleVariableRPC = 3;
         public const int RPC_GraphRPCExample__asdf = 4;
         public const int RPC_RoutedGraphRPCExample__asdf = 5;
+        public const int RPC_SharpRoutedGraphRPCExample__asdf = 6;
         
         #endregion
     }

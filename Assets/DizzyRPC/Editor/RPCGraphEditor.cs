@@ -282,7 +282,7 @@ namespace DizzyRPC.Editor
                             {
                                 if (node.GetCustomEventName() == hook.name)
                                 {
-                                    int parameterCount = int.Parse(node.fullName.Substring(13, 1));
+                                    int parameterCount = node.fullName=="Event_Custom"?0: int.Parse(node.fullName.Substring(13, 1));
                                     hook.EnsureParameterCount(parameterCount);
                                     for (int i = 0; i < parameterCount; i++)
                                     {

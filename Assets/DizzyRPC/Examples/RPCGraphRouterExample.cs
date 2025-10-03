@@ -5,7 +5,7 @@ using VRRefAssist;
 namespace DizzyRPC.Examples
 {
     [Singleton]
-    [RPCGraphRouter("GraphRPCExample")]
+    [RPCGraphRouter("SharpRoutedGraphRPCExample")]
     public class RPCGraphRouterExample : RPCRouter<int>
     {
         public UdonBehaviour[] routedObjects;

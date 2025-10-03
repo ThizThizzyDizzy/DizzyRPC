@@ -28,17 +28,42 @@ MonoBehaviour:
       mode: 2
     rpcHooks:
     - name: _asdf
-      fullTypeName: DizzyRPC.Examples.RoutedRPCExample
-      methodName: _SomeRPC
+      fullTypeName: RoutedGraphRPCExample
+      methodName: _asdf
       parameterNames:
-      - message
+      - param1
     - name: asdf1324
       fullTypeName: GraphRPCExample
       methodName: _asdf
       parameterNames:
       - param1
       - param1
+    - name: _qwerty
+      fullTypeName: DizzyRPC.Examples.RoutedRPCExample
+      methodName: _SomeRPC
+      parameterNames:
+      - message
+      - message
+    - name: dfgwer
+      fullTypeName: DizzyRPC.Examples.SingletonRPCExample
+      methodName: _ExampleWithParameters
+      parameterNames:
+      - parameter
   - guid: 4ec182d9eaebcbd4c87201d63ddfddaf
+    singleton: 0
+    router: 0
+    routerTypeName: DizzyRPC.Examples.RoutedRPCExample
+    routerIdType: 
+    rpcMethods:
+    - name: _asdf
+      rateLimitPerSecond: 0
+      enforceSecure: 0
+      allowDropping: 0
+      requireLowLatency: 0
+      ignoreDuplicates: 0
+      mode: 0
+    rpcHooks: []
+  - guid: 7dfff8b0cbfedff46b4a155ca231b0ba
     singleton: 0
     router: 0
     routerTypeName: DizzyRPC.Examples.RoutedRPCExample

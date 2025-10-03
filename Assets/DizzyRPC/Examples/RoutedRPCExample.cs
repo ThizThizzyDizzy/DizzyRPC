@@ -32,7 +32,7 @@ namespace DizzyRPC.Examples
         #region Generated RPCs (DO NOT EDIT)
         [UnityEngine.SerializeField] private DizzyRPC.RPCManager _rpc_manager;
         
-        public void _SendRPC_SomeRPC(VRC.SDKBase.VRCPlayerApi target, System.String message) {
+        public void _SendRPC_SomeRPC(VRC.SDKBase.VRCPlayerApi target, System.String p_message) {
         }
         #endregion
     }

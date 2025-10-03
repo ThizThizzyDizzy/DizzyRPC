@@ -15,5 +15,10 @@ namespace DizzyRPC.Examples
         {
             return !Enabled || parameter == 2;
         }
+        [RPCHook(typeof(RoutedRPCExample), nameof(RoutedRPCExample._SomeRPC))]
+        public bool Check2Method(string message)
+        {
+            return true;
+        }
     }
 }

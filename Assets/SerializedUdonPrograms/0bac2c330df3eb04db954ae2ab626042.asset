@@ -39,4 +39,9 @@ MonoBehaviour:
   - _maxEventsPerSecond: 5
     _name: _RPC_RouteRPC
     _parameters: []
+  - _maxEventsPerSecond: 5
+    _name: dfgwer
+    _parameters:
+    - _name: dfgwer_Parameter1
+      _type: 11
   serializationDataFormat: 0
