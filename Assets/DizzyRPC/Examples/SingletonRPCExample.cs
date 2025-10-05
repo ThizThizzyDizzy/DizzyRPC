@@ -30,16 +30,16 @@ namespace DizzyRPC.Examples
         }
 
         [RPCHook("GraphRPCExample", "_asdf")]
-        public bool _HookTest(string param1)
+        public bool _HookTest(string Param1)
         {
-            Debug.Log($"[DizzyRPC] Hook Test: {param1}");
+            Debug.Log($"[DizzyRPC] Hook Test: {Param1}");
             return true;
         }
 
         [RPCHook("RoutedGraphRPCExample", "_asdf")]
-        public bool _Hook2Test(string param1)
+        public bool _Hook2Test(string pawamata)
         {
-            Debug.Log($"[DizzyRPC] Hook Test: {param1}");
+            Debug.Log($"[DizzyRPC] Hook Test: {pawamata}");
             return true;
         }
 

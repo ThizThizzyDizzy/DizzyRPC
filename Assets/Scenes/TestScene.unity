@@ -548,6 +548,7 @@ MonoBehaviour:
     SerializationNodes: []
   _udonSharpBackingUdonBehaviour: {fileID: 830754501}
   _rpc_manager: {fileID: 0}
+  _rpc_router_1: {fileID: 0}
 --- !u!114 &830754501
 MonoBehaviour:
   m_ObjectHideFlags: 2
@@ -1572,6 +1573,7 @@ MonoBehaviour:
     SerializationNodes: []
   _udonSharpBackingUdonBehaviour: {fileID: 2069232981}
   _rpc_manager: {fileID: 0}
+  _rpc_router_1: {fileID: 0}
 --- !u!114 &2069232981
 MonoBehaviour:
   m_ObjectHideFlags: 2
@@ -1672,6 +1674,7 @@ MonoBehaviour:
     SerializationNodes: []
   _udonSharpBackingUdonBehaviour: {fileID: 2106177030}
   _rpc_manager: {fileID: 0}
+  _rpc_router_1: {fileID: 0}
 --- !u!114 &2106177030
 MonoBehaviour:
   m_ObjectHideFlags: 2

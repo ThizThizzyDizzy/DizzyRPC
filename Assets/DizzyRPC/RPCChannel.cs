@@ -200,7 +200,7 @@ namespace DizzyRPC
 
                 if (targetPlayerId != ushort.MaxValue && targetPlayerId != localPlayer.playerId) continue; // This RPC isn't for us
 
-                // _DecodeRPC(id, Trim(rpcBytes, HEADER_LENGTH));
+                _DecodeRPC(id, Trim(rpcBytes, HEADER_LENGTH));
                 rpcCount++;
             }
 
@@ -234,7 +234,6 @@ namespace DizzyRPC
                 string s = (string)o;
                 return Combine(BitConverter.GetBytes(s.Length), Encoding.UTF8.GetBytes(s));
             }
-
             if (type == typeof(Vector2))
             {
                 var vec = (Vector2)o;
@@ -243,7 +242,6 @@ namespace DizzyRPC
                 Buffer.BlockCopy(BitConverter.GetBytes(vec.y), 0, bytes, 4, 4);
                 return bytes;
             }
-
             if (type == typeof(Vector3))
             {
                 var vec = (Vector3)o;
@@ -253,7 +251,6 @@ namespace DizzyRPC
                 Buffer.BlockCopy(BitConverter.GetBytes(vec.z), 0, bytes, 4 * 2, 4);
                 return bytes;
             }
-
             if (type == typeof(Vector4))
             {
                 var vec = (Vector4)o;
@@ -264,7 +261,6 @@ namespace DizzyRPC
                 Buffer.BlockCopy(BitConverter.GetBytes(vec.w), 0, bytes, 4 * 3, 4);
                 return bytes;
             }
-
             if (type == typeof(Quaternion))
             {
                 var q = (Quaternion)o;
@@ -275,7 +271,6 @@ namespace DizzyRPC
                 Buffer.BlockCopy(BitConverter.GetBytes(q.w), 0, bytes, 4 * 3, 4);
                 return bytes;
             }
-
             if (type == typeof(Color))
             {
                 var c = (Color)o;
@@ -286,11 +281,141 @@ namespace DizzyRPC
                 Buffer.BlockCopy(BitConverter.GetBytes(c.a), 0, bytes, 4 * 3, 4);
                 return bytes;
             }
-
             if (type == typeof(Color32))
             {
                 var c = (Color32)o;
                 return new[] { c.r, c.g, c.b, c.a };
+            }
+
+            if (type == typeof(bool[]))
+            {
+                var arr = (bool[])o;
+                var arrayBytes = BitConverter.GetBytes(arr.Length);
+                int bits = 0;
+                byte currentByte = 0;
+                for (int i = arr.Length - 1; i >= 0; i--)
+                {
+                    var b = arr[i];
+                    currentByte |= b ? (byte)0b1 : (byte)0b0;
+                    if (++bits == 8)
+                    {
+                        arrayBytes = Combine(arrayBytes, currentByte);
+                        currentByte = 0;
+                        bits = 0;
+                    }
+                    currentByte = (byte)(currentByte << 1);
+                }
+                if(bits>0) arrayBytes = Combine(arrayBytes, currentByte);
+                return arrayBytes;
+            }
+
+            if (type == typeof(sbyte[]))
+            {
+                var arr = (sbyte[])o;
+                var arrayBytes = BitConverter.GetBytes(arr.Length);
+                foreach (var val in arr) arrayBytes = Combine(arrayBytes, Encode(val));
+            }
+            if (type == typeof(byte[]))
+            {
+                var arr = (byte[])o;
+                var arrayBytes = BitConverter.GetBytes(arr.Length);
+                foreach (var val in arr) arrayBytes = Combine(arrayBytes, Encode(val));
+            }
+            if (type == typeof(short[]))
+            {
+                var arr = (short[])o;
+                var arrayBytes = BitConverter.GetBytes(arr.Length);
+                foreach (var val in arr) arrayBytes = Combine(arrayBytes, Encode(val));
+            }
+            if (type == typeof(ushort[])) 
+            {
+                var arr = (ushort[])o;
+                var arrayBytes = BitConverter.GetBytes(arr.Length);
+                foreach (var val in arr) arrayBytes = Combine(arrayBytes, Encode(val));
+            }
+            if (type == typeof(int[]))
+            {
+                var arr = (int[])o;
+                var arrayBytes = BitConverter.GetBytes(arr.Length);
+                foreach (var val in arr) arrayBytes = Combine(arrayBytes, Encode(val));
+            }
+            if (type == typeof(uint[])) 
+            {
+                var arr = (uint[])o;
+                var arrayBytes = BitConverter.GetBytes(arr.Length);
+                foreach (var val in arr) arrayBytes = Combine(arrayBytes, Encode(val));
+            }
+            if (type == typeof(long[])) 
+            {
+                var arr = (long[])o;
+                var arrayBytes = BitConverter.GetBytes(arr.Length);
+                foreach (var val in arr) arrayBytes = Combine(arrayBytes, Encode(val));
+            }
+            if (type == typeof(ulong[])) 
+            {
+                var arr = (ulong[])o;
+                var arrayBytes = BitConverter.GetBytes(arr.Length);
+                foreach (var val in arr) arrayBytes = Combine(arrayBytes, Encode(val));
+            }
+            if (type == typeof(float[])) 
+            {
+                var arr = (float[])o;
+                var arrayBytes = BitConverter.GetBytes(arr.Length);
+                foreach (var val in arr) arrayBytes = Combine(arrayBytes, Encode(val));
+            }
+            if (type == typeof(double[])) 
+            {
+                var arr = (double[])o;
+                var arrayBytes = BitConverter.GetBytes(arr.Length);
+                foreach (var val in arr) arrayBytes = Combine(arrayBytes, Encode(val));
+            }
+            if (type == typeof(char[])) 
+            {
+                var arr = (char[])o;
+                var arrayBytes = BitConverter.GetBytes(arr.Length);
+                foreach (var val in arr) arrayBytes = Combine(arrayBytes, Encode(val));
+            }
+            if (type == typeof(string[]))
+            {
+                var arr = (string[])o;
+                var arrayBytes = BitConverter.GetBytes(arr.Length);
+                foreach (var val in arr) arrayBytes = Combine(arrayBytes, Encode(val));
+            }
+            if (type == typeof(Vector2[]))
+            {
+                var arr = (Vector2[])o;
+                var arrayBytes = BitConverter.GetBytes(arr.Length);
+                foreach (var val in arr) arrayBytes = Combine(arrayBytes, Encode(val));
+            }
+            if (type == typeof(Vector3[]))
+            {
+                var arr = (Vector3[])o;
+                var arrayBytes = BitConverter.GetBytes(arr.Length);
+                foreach (var val in arr) arrayBytes = Combine(arrayBytes, Encode(val));
+            }
+            if (type == typeof(Vector4[]))
+            {
+                var arr = (Vector4[])o;
+                var arrayBytes = BitConverter.GetBytes(arr.Length);
+                foreach (var val in arr) arrayBytes = Combine(arrayBytes, Encode(val));
+            }
+            if (type == typeof(Quaternion[]))
+            {
+                var arr = (Quaternion[])o;
+                var arrayBytes = BitConverter.GetBytes(arr.Length);
+                foreach (var val in arr) arrayBytes = Combine(arrayBytes, Encode(val));
+            }
+            if (type == typeof(Color[]))
+            {
+                var arr = (Color[])o;
+                var arrayBytes = BitConverter.GetBytes(arr.Length);
+                foreach (var val in arr) arrayBytes = Combine(arrayBytes, Encode(val));
+            }
+            if (type == typeof(Color32[]))
+            {
+                var arr = (Color32[])o;
+                var arrayBytes = BitConverter.GetBytes(arr.Length);
+                foreach (var val in arr) arrayBytes = Combine(arrayBytes, Encode(val));
             }
 
             Debug.LogError($"Could not encode type: {o.GetType().FullName}");
@@ -449,6 +574,170 @@ namespace DizzyRPC
         }
 
         #endregion
+        #region Decode (Arrays)
+
+        private bool[] DecodeBooleanArray(byte[] bytes, ref int position)
+        {
+            int count = DecodeInt32(bytes, ref position);
+            bool[] array = new bool[count];
+            int i = 0;
+            for(int _byte = 0; i<count&& _byte<count/8+Math.Sign(count%8); _byte++)
+            {
+                byte b = DecodeByte(bytes, ref position);
+                for (int bit = 0; i < count && bit < 8; bit++)
+                {
+                    array[i++] = (b & 0b1)==0b1;
+                    b = (byte)(b >> 1);
+                }
+            }
+            return array;
+        }
+
+        private sbyte[] DecodeSByteArray(byte[] bytes, ref int position)
+        {
+            int count = DecodeInt32(bytes, ref position);
+            sbyte[] array = new sbyte[count];
+            for (int i = 0; i < count; i++) array[i] = DecodeSByte(bytes, ref position);
+            return array;
+        }
+
+        private byte[] DecodeByteArray(byte[] bytes, ref int position)
+        {
+            int count = DecodeInt32(bytes, ref position);
+            byte[] array = new byte[count];
+            for (int i = 0; i < count; i++) array[i] = DecodeByte(bytes, ref position);
+            return array;
+        }
+
+        private short[] DecodeInt16Array(byte[] bytes, ref int position)
+        {
+            int count = DecodeInt32(bytes, ref position);
+            short[] array = new short[count];
+            for (int i = 0; i < count; i++) array[i] = DecodeInt16(bytes, ref position);
+            return array;
+        }
+
+        private ushort[] DecodeUInt16Array(byte[] bytes, ref int position)
+        {
+            int count = DecodeInt32(bytes, ref position);
+            ushort[] array = new ushort[count];
+            for (int i = 0; i < count; i++) array[i] = DecodeUInt16(bytes, ref position);
+            return array;
+        }
+
+        private int[] DecodeInt32Array(byte[] bytes, ref int position)
+        {
+            int count = DecodeInt32(bytes, ref position);
+            int[] array = new int[count];
+            for (int i = 0; i < count; i++) array[i] = DecodeInt32(bytes, ref position);
+            return array;
+        }
+
+        private uint[] DecodeUInt32Array(byte[] bytes, ref int position)
+        {
+            int count = DecodeInt32(bytes, ref position);
+            uint[] array = new uint[count];
+            for (int i = 0; i < count; i++) array[i] = DecodeUInt32(bytes, ref position);
+            return array;
+        }
+
+        private long[] DecodeInt64Array(byte[] bytes, ref int position)
+        {
+            int count = DecodeInt32(bytes, ref position);
+            long[] array = new long[count];
+            for (int i = 0; i < count; i++) array[i] = DecodeInt64(bytes, ref position);
+            return array;
+        }
+
+        private ulong[] DecodeUInt64Array(byte[] bytes, ref int position)
+        {
+            int count = DecodeInt32(bytes, ref position);
+            ulong[] array = new ulong[count];
+            for (int i = 0; i < count; i++) array[i] = DecodeUInt64(bytes, ref position);
+            return array;
+        }
+
+        private float[] DecodeSingleArray(byte[] bytes, ref int position)
+        {
+            int count = DecodeInt32(bytes, ref position);
+            float[] array = new float[count];
+            for (int i = 0; i < count; i++) array[i] = DecodeSingle(bytes, ref position);
+            return array;
+        }
+
+        private double[] DecodeDoubleArray(byte[] bytes, ref int position)
+        {
+            int count = DecodeInt32(bytes, ref position);
+            double[] array = new double[count];
+            for (int i = 0; i < count; i++) array[i] = DecodeDouble(bytes, ref position);
+            return array;
+        }
+
+        private char[] DecodeCharArray(byte[] bytes, ref int position)
+        {
+            int count = DecodeInt32(bytes, ref position);
+            char[] array = new char[count];
+            for (int i = 0; i < count; i++) array[i] = DecodeChar(bytes, ref position);
+            return array;
+        }
+
+        private Vector2[] DecodeVector2Array(byte[] bytes, ref int position)
+        {
+            int count = DecodeInt32(bytes, ref position);
+            Vector2[] array = new Vector2[count];
+            for (int i = 0; i < count; i++) array[i] = DecodeVector2(bytes, ref position);
+            return array;
+        }
+
+        private Vector3[] DecodeVector3Array(byte[] bytes, ref int position)
+        {
+            int count = DecodeInt32(bytes, ref position);
+            Vector3[] array = new Vector3[count];
+            for (int i = 0; i < count; i++) array[i] = DecodeVector3(bytes, ref position);
+            return array;
+        }
+
+        private Vector4[] DecodeVector4Array(byte[] bytes, ref int position)
+        {
+            int count = DecodeInt32(bytes, ref position);
+            Vector4[] array = new Vector4[count];
+            for (int i = 0; i < count; i++) array[i] = DecodeVector4(bytes, ref position);
+            return array;
+        }
+
+        private Quaternion[] DecodeQuaternionArray(byte[] bytes, ref int position)
+        {
+            int count = DecodeInt32(bytes, ref position);
+            Quaternion[] array = new Quaternion[count];
+            for (int i = 0; i < count; i++) array[i] = DecodeQuaternion(bytes, ref position);
+            return array;
+        }
+
+        private Color[] DecodeColorArray(byte[] bytes, ref int position)
+        {
+            int count = DecodeInt32(bytes, ref position);
+            Color[] array = new Color[count];
+            for (int i = 0; i < count; i++) array[i] = DecodeColor(bytes, ref position);
+            return array;
+        }
+
+        private Color32[] DecodeColor32Array(byte[] bytes, ref int position)
+        {
+            int count = DecodeInt32(bytes, ref position);
+            Color32[] array = new Color32[count];
+            for (int i = 0; i < count; i++) array[i] = DecodeColor32(bytes, ref position);
+            return array;
+        }
+
+        private string[] DecodeStringArray(byte[] bytes, ref int position)
+        {
+            int count = DecodeInt32(bytes, ref position);
+            string[] array = new string[count];
+            for (int i = 0; i < count; i++) array[i] = DecodeString(bytes, ref position);
+            return array;
+        }
+
+        #endregion
         #region Generated RPCs (DO NOT EDIT)
         public const int RPC_RoutedRPCExample__SomeRPC = 0;
         public const int RPC_SingletonRPCExample__Example = 1;
@@ -456,8 +745,9 @@ namespace DizzyRPC
         public const int RPC_SingletonRPCExample__ExampleVariableRPC = 3;
         public const int RPC_GraphRPCExample__asdf = 4;
         public const int RPC_RoutedGraphRPCExample__asdf = 5;
-        public const int RPC_SharpRoutedGraphRPCExample__asdf = 6;
+        public const int RPC_SharpRoutedGraphRPCExample_NewRPCMethod = 6;
         
+        private void _DecodeRPC(int id, byte[] data) {}
         #endregion
     }
 }

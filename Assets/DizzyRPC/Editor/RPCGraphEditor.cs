@@ -1,9 +1,8 @@
 using System;
-using System.Collections.Generic;
+using System.Linq;
 using DizzyRPC.Attribute;
 using UnityEditor;
 using UnityEngine;
-using VRC.SDKBase;
 using VRC.Udon;
 using VRC.Udon.Editor.ProgramSources.UdonGraphProgram;
 using VRC.Udon.Graph;
@@ -15,9 +14,6 @@ namespace DizzyRPC.Editor
     {
         public static readonly RPCGraphDataStorage graphDataStorage;
         public static readonly SerializedRPCGraphDataStorage serializedGraphDataStorage;
-        
-        // All types that can be used for VRC custom network events
-        private static readonly Type[] validRouterIdTypes = { typeof(short), typeof(ushort), typeof(char), typeof(sbyte), typeof(byte), typeof(long), typeof(ulong), typeof(double), typeof(bool), typeof(float), typeof(int), typeof(uint), typeof(Vector2), typeof(Vector3), typeof(Vector4), typeof(Quaternion), typeof(Color), typeof(Color32), typeof(short[]), typeof(ushort[]), typeof(char[]), typeof(sbyte[]), typeof(byte[]), typeof(long[]), typeof(ulong[]), typeof(double[]), typeof(bool[]), typeof(float[]), typeof(int[]), typeof(uint[]), typeof(Vector2[]), typeof(Vector3[]), typeof(Vector4[]), typeof(Quaternion[]), typeof(Color[]), typeof(Color32[]), typeof(string), typeof(VRCUrl), typeof(VRCUrl[]), typeof(string[]) };
 
         static RPCGraphEditor()
         {
@@ -52,13 +48,12 @@ namespace DizzyRPC.Editor
         {
             if (editor.target is UdonGraphProgramAsset program)
             {
-
                 serializedGraphDataStorage.Update();
                 var data = serializedGraphDataStorage.GetGraphData(program);
                 EditorGUI.BeginChangeCheck();
 
                 EditorGUILayout.LabelField("DizzyRPC Settings", EditorStyles.boldLabel);
-                
+
                 EditorGUILayout.LabelField($"{program.name} Routing Settings", EditorStyles.miniBoldLabel);
                 data.singleton = GUILayout.Toggle(data.singleton, "Singleton");
 
@@ -67,7 +62,7 @@ namespace DizzyRPC.Editor
                 if (data.router)
                 {
                     var backgroundColorWas = GUI.backgroundColor;
-                    
+
                     bool isValid = false;
 
                     string typeName = null;
@@ -80,7 +75,7 @@ namespace DizzyRPC.Editor
                         }
                     }
 
-                    if(!isValid) GUI.backgroundColor = new Color(1.0f, 0f, 0f, 1.0f);
+                    if (!isValid) GUI.backgroundColor = new Color(1.0f, 0f, 0f, 1.0f);
 
                     EditorGUI.BeginDisabledGroup(!data.singleton);
                     if (EditorGUILayout.DropdownButton(new GUIContent(isValid ? $"{typeName}" : $"Select a program to route RPCs to{(data.routerTypeName != "" ? $" (Invalid type: {data.routerTypeName})" : "")}"), FocusType.Keyboard))
@@ -97,6 +92,7 @@ namespace DizzyRPC.Editor
 
                         menu.ShowAsContext();
                     }
+
                     EditorGUI.EndDisabledGroup();
                     GUI.backgroundColor = backgroundColorWas;
 
@@ -106,7 +102,7 @@ namespace DizzyRPC.Editor
                     if (EditorGUILayout.DropdownButton(new GUIContent($"{data.routerIdType?.FullName}"), FocusType.Keyboard))
                     {
                         var menu = new GenericMenu();
-                        foreach (var type in validRouterIdTypes)
+                        foreach (var type in RPCCompiler.fullySupportedTypes)
                         {
                             menu.AddItem(new GUIContent($"{type.FullName}"), false, () =>
                             {
@@ -118,11 +114,12 @@ namespace DizzyRPC.Editor
                         menu.ShowAsContext();
                     }
                 }
+
                 EditorGUILayout.EndHorizontal();
-                
-                if (data.router&&data.routerIdType==null) EditorGUILayout.HelpBox("Routing ID type must be set!", MessageType.Error);
-                if (data.router&&!data.singleton) EditorGUILayout.HelpBox("A router must also be a singleton!", MessageType.Error);
-                if (!data.singleton && data.rpcMethods.Length>0)
+
+                if (data.router && data.routerIdType == null) EditorGUILayout.HelpBox("Routing ID type must be set!", MessageType.Error);
+                if (data.router && !data.singleton) EditorGUILayout.HelpBox("A router must also be a singleton!", MessageType.Error);
+                if (!data.singleton && data.rpcMethods.Length > 0)
                 {
                     bool hasRouter = false;
                     foreach (var router in RPCCompiler.Routers)
@@ -132,27 +129,17 @@ namespace DizzyRPC.Editor
                             hasRouter = true;
                         }
                     }
-                    if(!hasRouter) EditorGUILayout.HelpBox("This program is not a singleton, and has no router!", MessageType.Error);
-                }
 
-                List<string> existingEventNames = new();
-                foreach (var eventNode in program.graphData.EventNodes)
-                {
-                    var name = eventNode.GetCustomEventName();
-                    if(name!=null)existingEventNames.Add(name);
+                    if (!hasRouter) EditorGUILayout.HelpBox("This program is not a singleton, and has no router!", MessageType.Error);
                 }
 
                 EditorGUILayout.Separator();
                 EditorGUILayout.LabelField("RPC Methods", EditorStyles.miniBoldLabel);
                 foreach (var method in data.rpcMethods)
                 {
-                    var originalColor = GUI.backgroundColor;
-
-                    if (!existingEventNames.Contains(method.name)) GUI.backgroundColor = new Color(1.0f, 0f, 0f, 1.0f);
-
                     EditorGUILayout.BeginVertical(EditorStyles.helpBox);
                     EditorGUILayout.BeginHorizontal();
-                    EditorGUILayout.LabelField(method.name);
+                    method.name = EditorGUILayout.TextField("Name", method.name);
                     if (GUILayout.Button("Remove"))
                     {
                         data.RemoveRPCMethod(method);
@@ -161,10 +148,6 @@ namespace DizzyRPC.Editor
                     }
 
                     EditorGUILayout.EndHorizontal();
-                    if (!method.name.StartsWith("_"))
-                    {
-                        EditorGUILayout.HelpBox("RPCMethod name must start with _!", MessageType.Error);
-                    }
 
                     GUILayout.BeginHorizontal();
                     method.rateLimitPerSecond = GUILayout.Toggle(method.rateLimitPerSecond > -1, "Rate Limit Per second") ? Mathf.Max(0, method.rateLimitPerSecond) : -1;
@@ -175,44 +158,59 @@ namespace DizzyRPC.Editor
                     method.requireLowLatency = GUILayout.Toggle(method.requireLowLatency, "Require Low Latency");
                     method.ignoreDuplicates = GUILayout.Toggle(method.ignoreDuplicates, "Ignore Duplicates");
                     method.mode = (RPCSyncMode)EditorGUILayout.EnumPopup(new GUIContent("Sync Mode"), method.mode);
-                    EditorGUILayout.EndVertical();
-                    GUI.backgroundColor = originalColor;
-                }
 
-                bool canAddMethod = false;
-                foreach (var name in existingEventNames)
-                {
-                    bool exists = false;
-                    foreach (var method in data.rpcMethods) exists |= method.name == name;
-                    canAddMethod |= !exists;
+                    EditorGUILayout.BeginHorizontal();
+                    GUILayout.FlexibleSpace();
+                    if (GUILayout.Button("-"))
+                    {
+                        method.EnsureParameterCount(method.parameterNames.Length - 1);
+                    }
+
+                    if (GUILayout.Button("+"))
+                    {
+                        method.EnsureParameterCount(method.parameterNames.Length + 1);
+                    }
+
+                    EditorGUILayout.EndHorizontal();
+                    for (int i = 0; i < method.parameterNames.Length; i++)
+                    {
+                        int idx = i;
+                        EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+                        method.parameterNames[i].stringValue = EditorGUILayout.TextField($"Parameter {i + 1}", method.parameterNames[i].stringValue);
+
+                        EditorGUILayout.BeginHorizontal();
+                        EditorGUILayout.LabelField("Type");
+                        if (EditorGUILayout.DropdownButton(new GUIContent($"{Type.GetType(method.parameterTypes[i].stringValue)?.FullName}"), FocusType.Keyboard))
+                        {
+                            var menu = new GenericMenu();
+                            foreach (var type in RPCCompiler.fullySupportedTypes)
+                            {
+                                menu.AddItem(new GUIContent($"{type.FullName}"), false, () =>
+                                {
+                                    method.parameterTypes[idx].stringValue = type.AssemblyQualifiedName;
+                                    SaveRPCGraphData();
+                                });
+                            }
+
+                            menu.ShowAsContext();
+                        }
+
+                        EditorGUILayout.EndHorizontal();
+                        EditorGUILayout.EndVertical();
+                    }
+
+                    EditorGUILayout.EndVertical();
                 }
 
                 EditorGUILayout.Space();
-                EditorGUI.BeginDisabledGroup(!canAddMethod);
-                if (EditorGUILayout.DropdownButton(new GUIContent("Add RPC Method"), FocusType.Keyboard))
+                if (GUILayout.Button("Add RPC Method"))
                 {
-                    var menu = new GenericMenu();
-                    foreach (var eventNode in program.graphData.EventNodes)
-                    {
-                        if (eventNode.nodeValues.Length < 1) continue;
-                        string eventName = eventNode.GetCustomEventName();
-                        if (eventName == null) continue;
-
-                        bool alreadyExists = false;
-                        foreach (var method in data.rpcMethods) alreadyExists |= method.name == eventName;
-                        if (alreadyExists) continue;
-
-                        menu.AddItem(new GUIContent(eventName), false, () =>
-                        {
-                            data.AddRPCMethod(eventName);
-                            SaveRPCGraphData();
-                        });
-                    }
-
-                    menu.ShowAsContext();
+                    string newMethodName = $"NewRPCMethod";
+                    int i = 0;
+                    while (data.rpcMethods.Any(method => method.name == newMethodName)) newMethodName = $"NewRPCMethod_{i++}";
+                    data.AddRPCMethod(newMethodName);
+                    SaveRPCGraphData();
                 }
-
-                EditorGUI.EndDisabledGroup();
 
                 EditorGUILayout.Separator();
                 if (data.rpcHooks.Length > 0 || data.singleton)
@@ -222,11 +220,9 @@ namespace DizzyRPC.Editor
                     {
                         var originalColor = GUI.backgroundColor;
 
-                        if (!existingEventNames.Contains(hook.name) || !data.singleton) GUI.backgroundColor = new Color(1.0f, 0f, 0f, 1.0f);
-
                         EditorGUILayout.BeginVertical(EditorStyles.helpBox);
                         EditorGUILayout.BeginHorizontal();
-                        EditorGUILayout.LabelField(hook.name);
+                        hook.name = EditorGUILayout.TextField("Name", hook.name);
                         if (GUILayout.Button("Remove"))
                         {
                             data.RemoveRPCHook(hook);
@@ -275,107 +271,29 @@ namespace DizzyRPC.Editor
                         }
 
                         EditorGUILayout.EndHorizontal();
-
-                        if (selectedRPC != null)
-                        {
-                            foreach (var node in program.graphData.EventNodes)
-                            {
-                                if (node.GetCustomEventName() == hook.name)
-                                {
-                                    int parameterCount = node.fullName=="Event_Custom"?0: int.Parse(node.fullName.Substring(13, 1));
-                                    hook.EnsureParameterCount(parameterCount);
-                                    for (int i = 0; i < parameterCount; i++)
-                                    {
-                                        var backgroundColorWas = GUI.backgroundColor;
-
-                                        int index = i;
-                                        var type = Type.GetType(node.nodeValues[i + 2].stringValue.Split("|", 2)[1]);
-                                        string parameterName = hook.parameterNames[i].stringValue;
-                                        bool parameterValid = false;
-
-                                        foreach (var parameter in selectedRPC.methodParameters)
-                                        {
-                                            if (parameter.type == type && parameter.name == parameterName)
-                                            {
-                                                parameterValid = true;
-                                            }
-                                        }
-
-                                        if (!parameterValid) GUI.backgroundColor = new Color(1.0f, 0f, 0f, 1.0f);
-
-                                        EditorGUILayout.BeginHorizontal();
-                                        EditorGUILayout.LabelField($"Parameter {i + 1} ({type.FullName})");
-                                        if (EditorGUILayout.DropdownButton(new GUIContent(string.IsNullOrEmpty(parameterName) ? "(Unset)" : $"{parameterName}{(parameterValid ? "" : " (INVALID)")}"), FocusType.Keyboard))
-                                        {
-                                            var menu = new GenericMenu();
-                                            foreach (var parameter in selectedRPC.methodParameters)
-                                            {
-                                                if (parameter.type == type)
-                                                {
-                                                    menu.AddItem(new GUIContent($"{parameter.name}"), false, () =>
-                                                    {
-                                                        hook.parameterNames[index].stringValue = parameter.name;
-                                                        SaveRPCGraphData();
-                                                    });
-                                                }
-                                            }
-
-                                            menu.ShowAsContext();
-                                        }
-
-                                        EditorGUILayout.EndHorizontal();
-                                        GUI.backgroundColor = backgroundColorWas;
-                                    }
-                                }
-                            }
-                        }
-
                         EditorGUILayout.EndVertical();
                         GUI.backgroundColor = originalColor;
                     }
                 }
 
-                bool canAddHook = false;
-                foreach (var name in existingEventNames)
-                {
-                    bool exists = false;
-                    foreach (var hook in data.rpcHooks) exists |= hook.name == name;
-                    canAddHook |= !exists;
-                }
-
                 if (data.rpcHooks.Length > 0 || data.singleton)
                 {
                     EditorGUILayout.Space();
-                    EditorGUI.BeginDisabledGroup(!canAddHook);
-                    if (EditorGUILayout.DropdownButton(new GUIContent("Add RPC Hook"), FocusType.Keyboard))
+                    if (GUILayout.Button("Add RPC Hook"))
                     {
-                        var menu = new GenericMenu();
-                        foreach (var eventNode in program.graphData.EventNodes)
-                        {
-                            if (eventNode.nodeValues.Length < 1) continue;
-                            string eventName = eventNode.GetCustomEventName();
-                            if (eventName == null) continue;
-
-                            bool alreadyExists = false;
-                            foreach (var hook in data.rpcHooks) alreadyExists |= hook.name == eventName;
-                            if (alreadyExists) continue;
-
-                            menu.AddItem(new GUIContent(eventName), false, () =>
-                            {
-                                data.AddRPCHook(eventName);
-                                SaveRPCGraphData();
-                            });
-                        }
-
-                        menu.ShowAsContext();
+                        string newHookName = $"NewRPCHook";
+                        int i = 0;
+                        while (data.rpcMethods.Any(method => method.name == newHookName)) newHookName = $"NewRPCHook_{i++}";
+                        data.AddRPCHook(newHookName);
+                        SaveRPCGraphData();
                     }
-                    EditorGUI.EndDisabledGroup();
                 }
 
                 if (EditorGUI.EndChangeCheck())
                 {
                     SaveRPCGraphData();
                 }
+
                 EditorGUILayout.Separator();
             }
         }

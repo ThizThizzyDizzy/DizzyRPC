@@ -26,29 +26,23 @@ MonoBehaviour:
       requireLowLatency: 0
       ignoreDuplicates: 0
       mode: 2
+      parameterTypes:
+      - System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089
+      parameterNames:
+      - Param1
     rpcHooks:
     - name: _asdf
       fullTypeName: RoutedGraphRPCExample
       methodName: _asdf
-      parameterNames:
-      - param1
     - name: asdf1324
       fullTypeName: GraphRPCExample
       methodName: _asdf
-      parameterNames:
-      - param1
-      - param1
     - name: _qwerty
       fullTypeName: DizzyRPC.Examples.RoutedRPCExample
       methodName: _SomeRPC
-      parameterNames:
-      - message
-      - message
     - name: dfgwer
       fullTypeName: DizzyRPC.Examples.SingletonRPCExample
       methodName: _ExampleWithParameters
-      parameterNames:
-      - parameter
   - guid: 4ec182d9eaebcbd4c87201d63ddfddaf
     singleton: 0
     router: 0
@@ -62,6 +56,10 @@ MonoBehaviour:
       requireLowLatency: 0
       ignoreDuplicates: 0
       mode: 0
+      parameterTypes:
+      - System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089
+      parameterNames:
+      - pawamata
     rpcHooks: []
   - guid: 7dfff8b0cbfedff46b4a155ca231b0ba
     singleton: 0
@@ -69,11 +67,15 @@ MonoBehaviour:
     routerTypeName: DizzyRPC.Examples.RoutedRPCExample
     routerIdType: 
     rpcMethods:
-    - name: _asdf
-      rateLimitPerSecond: 0
+    - name: NewRPCMethod
+      rateLimitPerSecond: -1
       enforceSecure: 0
-      allowDropping: 0
+      allowDropping: 1
       requireLowLatency: 0
       ignoreDuplicates: 0
       mode: 0
+      parameterTypes:
+      - System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089
+      parameterNames:
+      - pramamataaattrrr
     rpcHooks: []

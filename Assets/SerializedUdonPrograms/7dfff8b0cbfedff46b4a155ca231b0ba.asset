@@ -1,0 +1,43 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bf61d954ecb803046953c666facfb904, type: 3}
+  m_Name: 7dfff8b0cbfedff46b4a155ca231b0ba
+  m_EditorClassIdentifier: 
+  serializedProgramCompressedBytes: 1f8b080000000000000aed575b6f1241143e43bb0b286a7c3068e2834f5e62edd036f1dd522f24da927279690ca565511240c2a2d6bfe03ff2dff99d33bb29ec4e99626b6cb0bbd959e6722edff9ce9961339a70a935344ddaa732ad53833af48586f855c67b80dbf4e2f12a8df1fe84b68db9357ae490e4eb89ba8fb6825e4813487ea563bc7b325fa300bf2b900dd0e3d12e9e00abd42a841ab4437bb44b4575cfa1a229426134a61897caa1dda61f980dc42936a265aa88a6869950e606703a5e77401f05d60073c79019531f3a8f44634ec285c753e2dd3bac6fd3887486c79f2d10c658d21d4056ed6788a248b2d9095c1d41810545436234a12ddab4a278a00a537e97a56d63454f94b2b184895f2913ec5c1f7730454188f1b7c22093d0c3cc3abdc79ba50e6903413d486869c26c1f340654473b127d87703bbdd20589e94acaec43a7c9a60146e2808ed0ef8b873569bf89a781785fc1d844727b88ecdec6fb44aca5b18ff1db66b31e85cceea33da9ce1a37a91bd3b40334ecbd5ee134bb66e45f30c2a1f7555486ab9a6b44fd4c31711d43b3c978b2591b1d1b12323533b6499abbaa968ae0e218d308edf96dd6f564dd3c34f6d830e12f04c329c7de2ca82dd23e837ae800352fa4acefa9655f7739ef7959dc4add84e46bb135867c152b7ad20b4967d9b7d20267147b30806ede5cea007d2414b84f2c7fce89d5bdb4cdcb85c29417cb77e5848b0bc286ce8de9ec8d3a1b218a7521d2bc772f1d52c6e947a452d64bf0fae62f1d4ae72dda342f77a4124ee01e8fb2be4e92a73cf374d53ccfcdc6392e6a7b31969895fc7f5e6f250ed98de9f339a3b9ab9effe166e7768f19f157cefba7dc950a46c1ae7c5141c163745a305f85497eb73015d0f768e4837ced7c96af99162cf2633ec6cc33c1d396371be53be1df458ea7bca88a577897f345c28cbe029a8e1cb421ee38f597609329717516d2357d37c232844643691bb286bed3fad69c68eae582793c5fa73bbb6f4dd7528283fe95da506c482fb2b914e6b0a27972a9f1df4ea669518e9e069837ca03dac3e28e38c597f71b697bec2e41120000
+  serializedProgramBytesString: 
+  serializedSignature: 
+  programUnityEngineObjects: []
+  networkCallingEntrypointMetadata:
+  - _maxEventsPerSecond: 5
+    _name: _asdf
+    _parameters:
+    - _name: _asdf_Parameter1
+      _type: 37
+  - _maxEventsPerSecond: 5
+    _name: asdf1324
+    _parameters:
+    - _name: asdf1324_Parameter1
+      _type: 37
+  - _maxEventsPerSecond: 5
+    _name: _qwerty
+    _parameters:
+    - _name: _qwerty_Parameter1
+      _type: 37
+    - _name: _qwerty_Parameter2
+      _type: 37
+  - _maxEventsPerSecond: 5
+    _name: _asdf
+    _parameters: []
+  - _maxEventsPerSecond: 5
+    _name: _RPC_NewRPCMethod
+    _parameters: []
+  serializationDataFormat: 0

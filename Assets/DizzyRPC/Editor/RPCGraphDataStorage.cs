@@ -192,6 +192,9 @@ namespace DizzyRPC.Editor
         public bool requireLowLatency = false;
         public bool ignoreDuplicates = false;
         public RPCSyncMode mode = RPCSyncMode.Automatic;
+        
+        public string[] parameterTypes;
+        public string[] parameterNames;
 
         public int RateLimitPerSecond => rateLimitPerSecond;
         public bool EnforceSecure => enforceSecure;
@@ -217,6 +220,8 @@ namespace DizzyRPC.Editor
         private readonly SerializedProperty _requireLowLatency;
         private readonly SerializedProperty _ignoreDuplicates;
         private readonly SerializedProperty _mode;
+        private readonly SerializedProperty _parameterNames;
+        private readonly SerializedProperty _parameterTypes;
 
         public string name { get => _name.stringValue; set => _name.stringValue = value; }
         public int rateLimitPerSecond { get => _rateLimitPerSecond.intValue; set => _rateLimitPerSecond.intValue = value; }
@@ -225,6 +230,8 @@ namespace DizzyRPC.Editor
         public bool requireLowLatency { get => _requireLowLatency.boolValue; set => _requireLowLatency.boolValue = value; }
         public bool ignoreDuplicates { get => _ignoreDuplicates.boolValue; set => _ignoreDuplicates.boolValue = value; }
         public RPCSyncMode mode { get => (RPCSyncMode)_mode.enumValueIndex; set => _mode.enumValueIndex = (int)value; }
+        public SerializedProperty[] parameterNames;
+        public SerializedProperty[] parameterTypes;
 
         public RPCGraphMethodDataSerializedProperty(SerializedProperty prop)
         {
@@ -236,6 +243,36 @@ namespace DizzyRPC.Editor
             _requireLowLatency = prop.FindPropertyRelative(nameof(RPCGraphMethodData.requireLowLatency));
             _ignoreDuplicates = prop.FindPropertyRelative(nameof(RPCGraphMethodData.ignoreDuplicates));
             _mode = prop.FindPropertyRelative(nameof(RPCGraphMethodData.mode));
+            _parameterNames = prop.FindPropertyRelative(nameof(RPCGraphMethodData.parameterNames));
+            _parameterTypes = prop.FindPropertyRelative(nameof(RPCGraphMethodData.parameterTypes));
+
+            RefreshParametersList();
+        }
+
+        private void RefreshParametersList()
+        {
+            parameterNames = new SerializedProperty[_parameterNames.arraySize];
+            for (int i = 0; i < _parameterNames.arraySize; i++)
+            {
+                parameterNames[i] = _parameterNames.GetArrayElementAtIndex(i);
+            }
+            parameterTypes = new SerializedProperty[_parameterTypes.arraySize];
+            for (int i = 0; i < _parameterTypes.arraySize; i++)
+            {
+                parameterTypes[i] = _parameterTypes.GetArrayElementAtIndex(i);
+            }
+        }
+
+        public void EnsureParameterCount(int parameterCount)
+        {
+            if (parameterCount < 0) parameterCount = 0;
+            while(_parameterNames.arraySize<parameterCount)_parameterNames.InsertArrayElementAtIndex(_parameterNames.arraySize);
+            while(_parameterNames.arraySize>parameterCount)_parameterNames.DeleteArrayElementAtIndex(_parameterNames.arraySize-1);
+            
+            while(_parameterTypes.arraySize<parameterCount)_parameterTypes.InsertArrayElementAtIndex(_parameterTypes.arraySize);
+            while(_parameterTypes.arraySize>parameterCount)_parameterTypes.DeleteArrayElementAtIndex(_parameterTypes.arraySize-1);
+            
+            RefreshParametersList();
         }
     }
 
@@ -248,7 +285,6 @@ namespace DizzyRPC.Editor
         public string name;
         public string fullTypeName;
         public string methodName;
-        public string[] parameterNames;
 
         public RPCGraphHookData(string name)
         {
@@ -263,12 +299,10 @@ namespace DizzyRPC.Editor
         private readonly SerializedProperty _name;
         private readonly SerializedProperty _fullTypeName;
         private readonly SerializedProperty _methodName;
-        private readonly SerializedProperty _parameterNames;
 
         public string name { get => _name.stringValue; set => _name.stringValue = value; }
         public string fullTypeName { get => _fullTypeName.stringValue; set => _fullTypeName.stringValue = value; }
         public string methodName { get => _methodName.stringValue; set => _methodName.stringValue = value; }
-        public SerializedProperty[] parameterNames;
 
         public RPCGraphHookDataSerializedProperty(SerializedProperty prop)
         {
@@ -276,25 +310,6 @@ namespace DizzyRPC.Editor
             _name = prop.FindPropertyRelative(nameof(RPCGraphHookData.name));
             _fullTypeName = prop.FindPropertyRelative(nameof(RPCGraphHookData.fullTypeName));
             _methodName = prop.FindPropertyRelative(nameof(RPCGraphHookData.methodName));
-            _parameterNames = prop.FindPropertyRelative(nameof(RPCGraphHookData.parameterNames));
-
-            RefreshParameterNamesList();
-        }
-
-        private void RefreshParameterNamesList()
-        {
-            parameterNames = new SerializedProperty[_parameterNames.arraySize];
-            for (int i = 0; i < _parameterNames.arraySize; i++)
-            {
-                parameterNames[i] = _parameterNames.GetArrayElementAtIndex(i);
-            }
-        }
-
-        public void EnsureParameterCount(int parameterCount)
-        {
-            while(_parameterNames.arraySize<parameterCount)_parameterNames.InsertArrayElementAtIndex(_parameterNames.arraySize);
-            while(_parameterNames.arraySize>parameterCount)_parameterNames.DeleteArrayElementAtIndex(_parameterNames.arraySize-1);
-            RefreshParameterNamesList();
         }
     }
 }
