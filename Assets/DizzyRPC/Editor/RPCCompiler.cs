@@ -313,6 +313,7 @@ namespace DizzyRPC.Editor
                 {
                     id = generatedRouters.Count,
                     routerType = typeof(UdonBehaviour),
+                    routerGraphName = program.name,
                     routableType = routableType,
                     routableGraphName = graph.routerTypeName,
                     idType = graph.RouterIdType
@@ -589,7 +590,7 @@ namespace DizzyRPC.Editor
                             rpc.hooks.Add(new GeneratedRPCHook()
                             {
                                 rpc = rpc,
-                                singleton = hookSingleton, 
+                                singleton = hookSingleton,
                                 methodName = hook.name,
                                 methodParameters = rpc.AllParameters
                             });
@@ -736,6 +737,8 @@ namespace DizzyRPC.Editor
                                 if (rpc.router.routerType == typeof(UdonBehaviour))
                                 {
                                     generatedLines.Add($"    {rpc.router.SharpFieldName}.SetProgramVariable(\"_RPC_PostRoute\", nameof({rpc.router.SharpPostRouteMethodName(rpc)}));");
+                                    generatedLines.Add($"    {rpc.router.SharpFieldName}.SetProgramVariable(\"_RPC_RouteChannel\", this);");
+                                    generatedLines.Add($"    {rpc.router.SharpFieldName}.SetProgramVariable(\"_RPC_RouteTarget\", nameof({rpc.router.SharpRoutedFieldName(rpc)}));");
                                     generatedLines.Add($"    {rpc.router.SharpFieldName}.SetProgramVariable(\"{rpc.routerParameter.GraphParameterName(rpc.router)}\", {rpc.routerParameter.SharpFieldName(rpc)});");
                                     generatedLines.Add($"    {rpc.router.SharpFieldName}.SendCustomEvent(\"{rpc.router.GraphMethodName}\");");
                                     generatedLines.Add($"}}");
@@ -847,80 +850,320 @@ namespace DizzyRPC.Editor
             return true;
         }
 
+        private const int NODE_BASE = 82 - NODE_ROW;
+        private const int NODE_ROW = 25;
+        private const int NODE_1 = NODE_BASE + NODE_ROW;
+        private const int NODE_2 = NODE_BASE + NODE_ROW * 2;
+        private const int NODE_3 = NODE_BASE + NODE_ROW * 3;
+        private const int NODE_4 = NODE_BASE + NODE_ROW * 4;
+        private const int NODE_5 = NODE_BASE + NODE_ROW * 5;
+        private const int NODE_6 = NODE_BASE + NODE_ROW * 6;
+        private const int NODE_7 = NODE_BASE + NODE_ROW * 7;
+        private const int NODE_8 = NODE_BASE + NODE_ROW * 8;
+        private const int NODE_9 = NODE_BASE + NODE_ROW * 9;
+        private const int NODE_SPACING = NODE_3;
+        private const int GRAPH_ROUTER_WIDTH = 1470;
+
         private static void GenerateRPCs(string guid, UdonGraphProgramAsset program, GenerationMode mode)
         {
             var generator = new UdonGraphGen(program);
+
+            // Cleanup
+            foreach (var g in generator.Groups.Where(g => g.title.StartsWith($"_RPC"))) generator.DeleteGroup(g);
+            foreach (var v in generator.Variables.Where(g => g.Name.StartsWith($"_RPC"))) v.Delete();
+
             if (mode == GenerationMode.Clean)
             {
-                foreach (var v in generator.Variables.Where(v => v.Name.StartsWith($"_RPC"))) v.Delete();
+                // Just do nothing, I guess, since cleanup already happened?
             }
             else
             {
-                foreach (var v in generator.Variables.Where(v => v.Name.StartsWith($"_RPC"))) v.Delete();
+                var allNodes = generator.Nodes;
+                float leftX = (allNodes.Length == 0 ? 0 : allNodes.Min(n => n.Position.x)) - 640;
+                float leftY = 0;
+                float rightX = (allNodes.Length == 0 ? 0 : allNodes.Max(n => n.Position.x)) + 400;
+                float rightY = 0;
+                float bottomX = 0;
+                float bottomY = (allNodes.Length == 0 ? 0 : allNodes.Max(n => n.Position.y)) + 400;
 
-                int x = 10;
-                int y = 0;
+                var rpcManagerVar = generator.AddVariable<UdonBehaviour>($"_RPC_Manager");
+
+                int routerCount = generatedRouters.Count(router => router.routerType == typeof(UdonBehaviour) && router.routerGraphName == program.name); // always 1 or 0, but you never know
+                int hookCount = generatedRPCs.Sum(rpc => rpc.hooks.Count(hook => hook.singleton.type == typeof(UdonBehaviour) && hook.singleton.udonGraphGuid == guid));
+
+                float totalBottomWidth = (routerCount + hookCount) * GRAPH_ROUTER_WIDTH;
+
+                float missingWidth = totalBottomWidth - (rightX - (leftX + 240));
+                if (missingWidth > 0)
+                {
+                    leftX -= missingWidth / 2;
+                    rightX += missingWidth / 2;
+                }
+
+                bottomX = ((leftX + 240) + rightX) / 2 - totalBottomWidth / 2;
+
                 foreach (GeneratedRPC rpc in generatedRPCs)
                 {
                     if (rpc.type == typeof(UdonBehaviour) && rpc.graphName == program.name)
                     {
-                        generator.AddCustomEvent(rpc.GraphMethodName, position: new(x, y++));
+                        generator.currentGroup = generator.AddGroup($"_RPC_{rpc.methodName}");
+
+                        generator.AddComment("!! GENERATED CODE !!\nDO NOT ADD OR EDIT ANY NODE IN THIS GROUP!\n\nThis is an RPC method. It will run when this RPC is sent by another user.\n1. Connect flow from the event node below.\n2. Use or copy the variables below if needed.\n3. Add your RPC logic.", new(leftX - 500, leftY, 500, NODE_6));
+                        var leftCommentY = leftY + NODE_7;
+
+                        generator.AddCustomEvent(rpc.GraphMethodName, position: new(leftX, leftY));
+                        leftY += NODE_3;
 
                         Dictionary<GeneratedRPCParameter, UdonGraphGenVariable> graphVariables = new();
                         foreach (var parameter in rpc.methodParameters)
                         {
                             graphVariables[parameter] = generator.AddVariable(parameter.type, $"{parameter.GraphParameterName(rpc)}");
+                            generator.AddGetVariable(graphVariables[parameter], new(leftX, leftY));
+                            leftY += NODE_1;
                         }
+
+                        if (leftCommentY > leftY) leftY = leftCommentY;
+
+                        leftY += NODE_SPACING;
+
+                        generator.currentGroup = generator.AddGroup($"_RPC_SEND_{rpc.methodName}");
+
+                        generator.AddComment("!! GENERATED CODE !!\nDO NOT ADD OR EDIT ANY NODE IN THIS GROUP!\n\nThis is a SEND RPC method. This will send an RPC to another player.\nTo send an RPC:\n1. Connect a VRCPlayerAPI value to the RPC_Target variable below. This is the player that will receive the RPC.\n(Use const null to send to all players)\n2. Connect values to ALL RPC variables below.\n3. Connect flow to the left side of the Block.", new(rightX + 180, rightY + NODE_5, 700, NODE_8));
+                        var rightCommentY = rightY + NODE_9;
+
+                        var originalRightY = rightY;
+                        var block = generator.AddBlock(position: new(rightX, rightY));
+                        rightY += NODE_BASE + NODE_ROW * (rpc.methodParameters.Count * 2 + 7);
+
+                        List<UdonGraphGenNode> flowNodes = new();
+                        var targetVariable = generator.AddVariable<VRCPlayerApi>($"_RPC_Target");
+                        if (rpc.methodParameters.Count > 0)
+                        {
+                            var sTarget = generator.AddSetVariable(targetVariable, new(rightX, rightY));
+                            flowNodes.Add(sTarget);
+                            rightY += NODE_4;
+                            for (int i = 0; i < rpc.methodParameters.Count; i++)
+                            {
+                                var setValue = generator.AddSetVariable(graphVariables[rpc.methodParameters[i]], new(rightX, rightY));
+                                flowNodes.Add(setValue);
+                                rightY += NODE_4;
+                            }
+                        }
+
+                        rightX += 100;
+
+                        var rightYWas = rightY;
+                        rightY = originalRightY;
+                        List<UdonGraphGenNode> nodesThatNeedTheRPCManager = new();
+                        var type = generator.AddType<object[]>(new(rightX, rightY));
+                        // rightY += NODE_1;
+                        var createArray = generator.AddMethod<Array>(nameof(Array.CreateInstance), new(rightX, rightY), typeof(Type), typeof(int));
+                        createArray.SetValue(0, type);
+                        createArray.SetValue(1, rpc.methodParameters.Count);
+                        flowNodes.Add(createArray);
+                        // rightY += NODE_4;
+
+                        for (int i = 0; i < rpc.methodParameters.Count; i++)
+                        {
+                            var setValue = generator.AddMethod<Array>(nameof(Array.SetValue), new(rightX, rightY), typeof(object), typeof(int));
+                            setValue.SetValue(0, createArray);
+                            setValue.SetValue(2, i);
+                            flowNodes.Add(setValue);
+                            // rightY += NODE_5;
+                            var getValue = generator.AddGetVariable(graphVariables[rpc.methodParameters[i]], new(rightX, rightY));
+                            setValue.SetValue(1, getValue);
+                            // rightY += NODE_1;
+                        }
+
+                        var setTarget = generator.AddMethod<UdonBehaviour>(nameof(UdonBehaviour.SetProgramVariable), new(rightX, rightY), typeof(string), typeof(object));
+                        setTarget.SetValue(1, nameof(RPCManager._graph_target));
+                        flowNodes.Add(setTarget);
+                        nodesThatNeedTheRPCManager.Add(setTarget);
+                        // rightY += NODE_4;
+                        var getTarget = generator.AddGetVariable(targetVariable, new(rightX, rightY));
+                        setTarget.SetValue(2, getTarget);
+                        // rightY += NODE_1;
+
+                        var setParameters = generator.AddMethod<UdonBehaviour>(nameof(UdonBehaviour.SetProgramVariable), new(rightX, rightY), typeof(string), typeof(object));
+                        setParameters.SetValue(1, nameof(RPCManager._graph_parameters));
+                        setParameters.SetValue(2, createArray);
+                        flowNodes.Add(setParameters);
+                        nodesThatNeedTheRPCManager.Add(setParameters);
+                        // rightY += NODE_4;
+
+                        var setId = generator.AddMethod<UdonBehaviour>(nameof(UdonBehaviour.SetProgramVariable), new(rightX, rightY), typeof(string), typeof(object));
+                        setId.SetValue(1, nameof(RPCManager._graph_id));
+                        flowNodes.Add(setId);
+                        nodesThatNeedTheRPCManager.Add(setId);
+                        // rightY += NODE_4;
+
+                        var constId = generator.AddConst<int>(rpc.id, new(rightX, rightY));
+                        setId.SetValue(2, constId);
+                        // rightY += NODE_1;
+
+
+                        var sendCustomEvent = generator.AddMethod<UdonBehaviour>(nameof(UdonBehaviour.SendCustomEvent), new(rightX, rightY), typeof(string));
+                        switch (rpc.mode)
+                        {
+                            case RPCSyncMode.Event:
+                                sendCustomEvent.SetValue(1, nameof(RPCManager._Graph_SendEvent));
+                                break;
+                            case RPCSyncMode.Variable:
+                                sendCustomEvent.SetValue(1, nameof(RPCManager._Graph_SendVariable));
+                                break;
+                        }
+
+                        flowNodes.Add(sendCustomEvent);
+                        block.AddFlow(flowNodes.ToArray());
+
+                        // rightY += NODE_3;
+
+                        var rpcManagerGet = generator.AddGetVariable(rpcManagerVar, new(rightX, rightY));
+                        sendCustomEvent.SetValue(0, rpcManagerGet);
+                        foreach (var node in nodesThatNeedTheRPCManager) node.SetValue(0, rpcManagerGet);
+                        // rightY += NODE_1;
+
+                        rightY = rightYWas;
+
+                        if (rightCommentY > rightY) rightY = rightCommentY;
+
+                        rightY += NODE_SPACING;
                     }
                 }
 
-                // foreach (GeneratedRouter router in generatedRouters)
-                // {
-                //     if (router.routerType == typeof(UdonBehaviour) && router.routerGraphName == program.name)
-                //     {
-                //         // Generate router variables
-                //         generator.AddVariable<string>("_RPC_PostRoute");
-                //         foreach (GeneratedRPC rpc in generatedRPCs)
-                //         {
-                //             
-                //         }
-                //         for (int i = 1; i <= NetworkEventParameterLimit - 1; i++) // -1 because of the routing ID
-                //         {
-                //             generator.AddVariable<object>($"_RPC_ROUTER_Param{i}");
-                //         }
-                //     }
-                // }
-                //
-                // bool hasAnyRPC = false;
-                // bool hasAnyHook = false;
-                // foreach (GeneratedRPC rpc in generatedRPCs)
-                // {
-                //     if (rpc.type == typeof(UdonBehaviour) && rpc.graphName == program.name)
-                //     {
-                //         hasAnyRPC = true;
-                //         foreach (var parameter in rpc.methodParameters)
-                //         {
-                //             generator.AddVariable(parameter.type, $"{parameter.GraphParameterName(rpc)}");
-                //         }
-                //     }
-                //     foreach (GeneratedRPCHook hook in rpc.hooks)
-                //     {
-                //         if (hook.singleton.type == typeof(UdonBehaviour) && hook.singleton.udonGraphGuid == guid)
-                //         {
-                //             hasAnyHook = true;
-                //             foreach (var parameter in hook.methodParameters)
-                //             {
-                //                 generator.AddVariable(parameter.type, $"{parameter.GraphParameterName(hook)}");
-                //             }
-                //         }
-                //     }
-                // }
-                //
-                // if (hasAnyHook)
-                // {
-                //     generator.AddVariable(typeof(string), $"_RPC_PostHook");
-                // }
-                // if (hasAnyRPC||hasAnyHook) generator.AddVariable<UdonBehaviour>("_RPC_Manager", true);
+                bottomY = Mathf.Max(bottomY, leftY, rightY);
+
+                foreach (GeneratedRouter router in generatedRouters)
+                {
+                    if (router.routerType == typeof(UdonBehaviour) && router.routerGraphName == program.name)
+                    {
+                        bottomX += NODE_SPACING;
+
+                        var baseBottomY = bottomY;
+                        var baseBottomX = bottomX;
+
+                        generator.currentGroup = generator.AddGroup($"_RPC_ROUTER");
+
+                        var routeResultVar = generator.AddVariable<UdonBehaviour>("_RPC_RouteResult");
+
+                        generator.AddCustomEvent("_RPC_RouteRPC", position: new(bottomX, bottomY));
+                        bottomY += NODE_3;
+
+                        generator.AddGetVariable(generator.AddVariable<string>("_RPC_Router__id"), new(bottomX, bottomY));
+                        bottomY += NODE_1;
+
+                        bottomX += GRAPH_ROUTER_WIDTH - 500;
+                        bottomY = baseBottomY;
+
+                        var block = generator.AddBlock(new(bottomX, bottomY));
+                        bottomY += NODE_4;
+
+                        var setResult = generator.AddSetVariable(routeResultVar, new(bottomX, bottomY));
+                        bottomY += NODE_4;
+
+                        bottomY = baseBottomY;
+                        bottomX += 100;
+
+                        var postRouteTarget = generator.AddMethod<UdonBehaviour>(nameof(UdonBehaviour.SetProgramVariable), new(bottomX, bottomY), typeof(string), typeof(object));
+                        // bottomY += NODE_4;
+                        var routeTarget = generator.AddGetVariable(generator.AddVariable<string>("_RPC_RouteTarget"), new(bottomX, bottomY));
+                        // bottomY += NODE_1;
+                        postRouteTarget.SetValue(1, routeTarget);
+
+                        var getResult = generator.AddGetVariable(routeResultVar, new(bottomX, bottomY));
+                        postRouteTarget.SetValue(2, getResult);
+                        // bottomY += NODE_1;
+
+                        var postRouteEvent = generator.AddMethod<UdonBehaviour>(nameof(UdonBehaviour.SendCustomEvent), new(bottomX, bottomY), typeof(string));
+                        // bottomY += NODE_3;
+                        var postRoute = generator.AddGetVariable(generator.AddVariable<string>("_RPC_PostRoute"), new(bottomX, bottomY));
+                        // bottomY += NODE_1;
+                        postRouteEvent.SetValue(1, postRoute);
+
+                        block.AddFlow(setResult, postRouteTarget, postRouteEvent);
+
+                        var routeChannel = generator.AddGetVariable(generator.AddVariable<UdonBehaviour>("_RPC_RouteChannel"), new(bottomX, bottomY));
+                        // bottomY += NODE_1;
+                        postRouteTarget.SetValue(0, routeChannel);
+                        postRouteEvent.SetValue(0, routeChannel);
+
+                        bottomY = baseBottomY;
+
+                        float commentWidth = GRAPH_ROUTER_WIDTH - NODE_SPACING - 700;
+                        generator.AddComment("!! GENERATED CODE !!\nDO NOT ADD OR EDIT ANY NODE IN THIS GROUP!\n\nThis is a routing function. It must match a routing ID to the corresponding UdonBehavior.", new(baseBottomX + 300, bottomY, commentWidth, NODE_4));
+                        bottomY += NODE_4;
+                        generator.AddComment("1. Connect flow from the event on the left to begin routing.\n2. Use or copy the variable on the left for the routing ID.\n3. Add routing logic to match the ID to an UdonBehavior.", new(baseBottomX + 300, bottomY, commentWidth / 2, NODE_5));
+                        generator.AddComment("4. Connect the UdonBehavior value to the RouteResult variable on the right.\n5. Connect flow to the block on the right to complete routing.\nDO NOT CONNECT FLOW FROM ANY OTHER SOURCE.", new(baseBottomX + 300 + commentWidth / 2, bottomY, commentWidth / 2, NODE_5));
+
+                        bottomX += 250;
+                        bottomY = baseBottomY;
+                    }
+                }
+
+                if (hookCount > 0)
+                {
+                    var postHookVar = generator.AddVariable(typeof(string), $"_RPC_PostHook");
+                    var hookChannelVar = generator.AddVariable<UdonBehaviour>("_RPC_HookChannel");
+
+                    foreach (GeneratedRPC rpc in generatedRPCs)
+                    {
+                        foreach (GeneratedRPCHook hook in rpc.hooks)
+                        {
+                            if (hook.singleton.type == typeof(UdonBehaviour) && hook.singleton.udonGraphGuid == guid)
+                            {
+                                bottomX += NODE_SPACING;
+
+                                var baseBottomY = bottomY;
+                                var baseBottomX = bottomX;
+
+                                generator.currentGroup = generator.AddGroup($"_RPC_HOOK_{hook.methodName}");
+
+
+                                generator.AddCustomEvent(hook.GraphMethodName, position: new(bottomX, bottomY));
+                                bottomY += NODE_3;
+
+                                foreach (var parameter in hook.methodParameters)
+                                {
+                                    generator.AddGetVariable(generator.AddVariable(parameter.type, $"{parameter.GraphParameterName(hook)}"), new(bottomX, bottomY));
+                                    bottomY += NODE_1;
+                                }
+
+                                bottomX += GRAPH_ROUTER_WIDTH - 500;
+                                bottomY = baseBottomY;
+
+                                var block = generator.AddBlock(new(bottomX, bottomY));
+                                bottomY += NODE_4;
+
+                                bottomY = baseBottomY;
+                                bottomX += 100;
+
+                                var postHookEvent = generator.AddMethod<UdonBehaviour>(nameof(UdonBehaviour.SendCustomEvent), new(bottomX, bottomY), typeof(string));
+                                // bottomY += NODE_3;
+
+                                var hookChannel = generator.AddGetVariable(hookChannelVar, new(bottomX, bottomY));
+                                // bottomY += NODE_1;
+                                postHookEvent.SetValue(0, hookChannel);
+
+                                var postRoute = generator.AddGetVariable(postHookVar, new(bottomX, bottomY));
+                                // bottomY += NODE_1;
+                                postHookEvent.SetValue(1, postRoute);
+
+                                block.AddFlow(postHookEvent);
+
+                                bottomY = baseBottomY;
+
+                                float commentWidth = GRAPH_ROUTER_WIDTH - NODE_SPACING - 700;
+                                generator.AddComment("!! GENERATED CODE !!\nDO NOT ADD OR EDIT ANY NODE IN THIS GROUP!\n\nThis is an RPC hook. This will run after an RPC has been received, but before it has run.", new(baseBottomX + 300, bottomY, commentWidth, NODE_4));
+                                bottomY += NODE_4;
+                                generator.AddComment("1. Connect flow from the event on the left to begin the hook.\n2. Use or copy the variables on the left if needed.\n3. Add your custom hook logic.", new(baseBottomX + 300, bottomY, commentWidth / 2, NODE_5));
+                                generator.AddComment("4. If you wish to allow the RPC to run, you must connect flow to the block on the right. If flow does not reach this block, the RPC will be cancelled.\nDO NOT CONNECT FLOW FROM ANY OTHER SOURCE.", new(baseBottomX + 300 + commentWidth / 2, bottomY, commentWidth / 2, NODE_5));
+
+                                bottomX += 250;
+                                bottomY = baseBottomY;
+                            }
+                        }
+                    }
+                }
             }
         }
 
@@ -1101,9 +1344,9 @@ namespace DizzyRPC.Editor
             public string SharpParameterType => type.FullName;
             public string SharpParameterName => $"p_{name}";
             public string SharpMethodParameter => $"{SharpParameterType} {SharpParameterName}";
-            public string GraphParameterName(GeneratedRPC rpc) => $"_RPC_R_{rpc.methodName}_p_{name}";
+            public string GraphParameterName(GeneratedRPC rpc) => $"_RPC_p_{rpc.methodName}__{name}";
             public string GraphParameterName(GeneratedRouter router) => $"_RPC_Router_{name}";
-            public string GraphParameterName(GeneratedRPCHook hook) => $"_RPC_H_{hook.GraphMethodName}_p_{name}";
+            public string GraphParameterName(GeneratedRPCHook hook) => $"_RPCH_p_{hook.GraphMethodName}__{name}";
             public string SharpFieldName(GeneratedRPC rpc) => $"rpc_{rpc.id}_{SharpParameterName}";
         }
 
