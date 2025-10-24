@@ -1,4 +1,11 @@
-﻿using UdonSharp;
+﻿/*
+ * Copyright (C) 2025 ThizThizzyDizzu (https://www.thizthizzydizzy.com)
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
+ * If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ */
+
+using UdonSharp;
 using UnityEngine;
 using VRC.SDK3.Network;
 using VRC.SDK3.UdonNetworkCalling;
@@ -14,19 +21,19 @@ namespace DizzyRPC.Debugger
     public class RPCDebugger : UdonSharpBehaviour
     {
         [SerializeField] private GameObject graphPrefab;
-        
+
         // Global graphs
         private RPCDebuggerGraph sentVariables;
         private RPCDebuggerGraph sentVariableBytes;
         private RPCDebuggerGraph receivedVariables;
         private RPCDebuggerGraph totalQueuedEvents;
         private RPCDebuggerGraph rpcPerSerialization;
-        
+
         private RPCDebuggerGraph networkClogged;
         private RPCDebuggerGraph networkSuffering;
         private RPCDebuggerGraph throughputPercentage;
         private RPCDebuggerGraph totalBytesPerSecond;
-        
+
         // Per channel
         private RPCDebuggerGraph[] variableSyncLatency = new RPCDebuggerGraph[0];
         private RPCDebuggerGraph[] queuedEvents = new RPCDebuggerGraph[0];
@@ -49,7 +56,7 @@ namespace DizzyRPC.Debugger
             rpcPerSerialization = CreateGraph(0, 2, "RPCs per serialization");
             totalBytesPerSecond = CreateGraph(0, 1, "Total Bytes Per Second");
             totalQueuedEvents = CreateGraph(0, 0, "Total Queued Events");
-            
+
             receivedVariables = CreateGraph(-1, 2, "Received Serializations");
             sentVariables = CreateGraph(-1, 1, "Sent Serializations");
             sentVariableBytes = CreateGraph(-1, 0, "Sent Serialization Bytes");
@@ -78,11 +85,11 @@ namespace DizzyRPC.Debugger
                         queuedEvents = newChannelGraphs;
                         queuedEvents[i] = CreateGraph(i + 1, 0, $"QE Channel {i}");
                     }
-                    
+
                     queuedEvents[i].title.text = $"QE Channel {i}:\n{player.displayName} ({player.playerId})";
                     queuedEvents[i].player = player;
-                    queuedEvents[i].Add(NetworkCalling.GetQueuedEvents((IUdonEventReceiver)channel, "RPC_0")/100f);
-                    
+                    queuedEvents[i].Add(NetworkCalling.GetQueuedEvents((IUdonEventReceiver)channel, "RPC_0") / 100f);
+
                     if (bytesPerSecond.Length <= i)
                     {
                         var newChannelGraphs = new RPCDebuggerGraph[bytesPerSecond.Length + 1];
@@ -90,11 +97,11 @@ namespace DizzyRPC.Debugger
                         bytesPerSecond = newChannelGraphs;
                         bytesPerSecond[i] = CreateGraph(i + 1, 1, $"BPS Channel {i}");
                     }
-                    
+
                     bytesPerSecond[i].title.text = $"BPS Channel {i}:\n{player.displayName} ({player.playerId})";
                     bytesPerSecond[i].player = player;
-                    bytesPerSecond[i].Add(Stats.BytesPerSecondAverage(channel.gameObject)/Stats.BytesOutMax);
-                    
+                    bytesPerSecond[i].Add(Stats.BytesPerSecondAverage(channel.gameObject) / Stats.BytesOutMax);
+
                     if (variableSyncLatency.Length <= i)
                     {
                         var newChannelGraphs = new RPCDebuggerGraph[variableSyncLatency.Length + 1];
@@ -102,7 +109,7 @@ namespace DizzyRPC.Debugger
                         variableSyncLatency = newChannelGraphs;
                         variableSyncLatency[i] = CreateGraph(i + 1, 2, "Serialization Latency");
                     }
-                    
+
                     variableSyncLatency[i].title.text = $"Serialization Latency";
                     variableSyncLatency[i].player = player;
                     i++;
@@ -114,11 +121,13 @@ namespace DizzyRPC.Debugger
                 queuedEvents[j].title.text = $"(Channel {j}:\nDisconnected)";
                 queuedEvents[j].Add(0);
             }
+
             for (int j = i; j < bytesPerSecond.Length; j++)
             {
                 queuedEvents[j].title.text = $"(Channel {j}:\nDisconnected)";
                 queuedEvents[j].Add(0);
             }
+
             for (int j = i; j < variableSyncLatency.Length; j++)
             {
                 variableSyncLatency[j].title.text = $"(Channel {j}:\nDisconnected)";
@@ -128,12 +137,12 @@ namespace DizzyRPC.Debugger
             networkClogged.Add(Networking.IsClogged ? 1 : 0);
             networkSuffering.Add(Stats.Suffering / 100f);
 
-            sentVariables.Add(numSentVariables/16f);
+            sentVariables.Add(numSentVariables / 16f);
             sentVariableBytes.Add(numSentVariableBytes / 280496f);
-            receivedVariables.Add(numReceivedVariables/16f);
-            
+            receivedVariables.Add(numReceivedVariables / 16f);
+
             numSentVariables = numSentVariableBytes = numReceivedVariables = 0;
-            
+
             throughputPercentage.Add(Stats.ThroughputPercentage);
         }
 
@@ -154,8 +163,8 @@ namespace DizzyRPC.Debugger
         public void OnVariableSyncReceived(VRCPlayerApi player, float sendTime, float receiveTime, int rpcCount)
         {
             numReceivedVariables++;
-            rpcPerSerialization.Add(rpcCount/32f);
-            foreach(var graph in variableSyncLatency)
+            rpcPerSerialization.Add(rpcCount / 32f);
+            foreach (var graph in variableSyncLatency)
                 if (graph.player == player)
                     graph.Add(receiveTime - sendTime);
         }

@@ -1,4 +1,11 @@
-﻿using UdonSharp;
+﻿/*
+ * Copyright (C) 2025 ThizThizzyDizzu (https://www.thizthizzydizzy.com)
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
+ * If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ */
+
+using UdonSharp;
 using VRC.SDKBase;
 using VRRefAssist;
 
@@ -64,6 +71,7 @@ namespace DizzyRPC
 
             channel.SendEvent(id, parameters);
         }
+
         public void _SendVariable(VRCPlayerApi target, ushort id, bool ignoreDuplicates, params object[] parameters)
         {
             foreach (var playerObject in Networking.LocalPlayer.GetPlayerObjects())
@@ -78,10 +86,12 @@ namespace DizzyRPC
         public VRCPlayerApi _graph_target;
         public ushort _graph_id;
         public object[] _graph_parameters;
+
         public void _Graph_SendEvent()
         {
             _SendEvent(_graph_target, _graph_id, _graph_parameters);
         }
+
         public void _Graph_SendVariable(VRCPlayerApi target, ushort id, bool ignoreDuplicates, params object[] parameters)
         {
             foreach (var playerObject in Networking.LocalPlayer.GetPlayerObjects())

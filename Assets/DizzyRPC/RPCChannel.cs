@@ -1,3 +1,10 @@
+/*
+ * Copyright (C) 2025 ThizThizzyDizzu (https://www.thizthizzydizzy.com)
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
+ * If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ */
+
 using System;
 using System.Text;
 using DizzyRPC.Debugger;
@@ -80,7 +87,7 @@ namespace DizzyRPC
 
                     if (_id == id)
                     {
-                        rpcData = Combine(Take(rpcData, i), Trim(rpcData, i+length+HEADER_LENGTH)); // Remove that RPC, so that the current newer one gets added on the end
+                        rpcData = Combine(Take(rpcData, i), Trim(rpcData, i + length + HEADER_LENGTH)); // Remove that RPC, so that the current newer one gets added on the end
                         break;
                     }
 
@@ -231,6 +238,7 @@ namespace DizzyRPC
                 string s = (string)o;
                 return Combine(BitConverter.GetBytes(s.Length), Encoding.UTF8.GetBytes(s));
             }
+
             if (type == typeof(Vector2))
             {
                 var vec = (Vector2)o;
@@ -239,6 +247,7 @@ namespace DizzyRPC
                 Buffer.BlockCopy(BitConverter.GetBytes(vec.y), 0, bytes, 4, 4);
                 return bytes;
             }
+
             if (type == typeof(Vector3))
             {
                 var vec = (Vector3)o;
@@ -248,6 +257,7 @@ namespace DizzyRPC
                 Buffer.BlockCopy(BitConverter.GetBytes(vec.z), 0, bytes, 4 * 2, 4);
                 return bytes;
             }
+
             if (type == typeof(Vector4))
             {
                 var vec = (Vector4)o;
@@ -258,6 +268,7 @@ namespace DizzyRPC
                 Buffer.BlockCopy(BitConverter.GetBytes(vec.w), 0, bytes, 4 * 3, 4);
                 return bytes;
             }
+
             if (type == typeof(Quaternion))
             {
                 var q = (Quaternion)o;
@@ -268,6 +279,7 @@ namespace DizzyRPC
                 Buffer.BlockCopy(BitConverter.GetBytes(q.w), 0, bytes, 4 * 3, 4);
                 return bytes;
             }
+
             if (type == typeof(Color))
             {
                 var c = (Color)o;
@@ -278,6 +290,7 @@ namespace DizzyRPC
                 Buffer.BlockCopy(BitConverter.GetBytes(c.a), 0, bytes, 4 * 3, 4);
                 return bytes;
             }
+
             if (type == typeof(Color32))
             {
                 var c = (Color32)o;
@@ -300,9 +313,11 @@ namespace DizzyRPC
                         currentByte = 0;
                         bits = 0;
                     }
+
                     currentByte = (byte)(currentByte << 1);
                 }
-                if(bits>0) arrayBytes = Combine(arrayBytes, currentByte);
+
+                if (bits > 0) arrayBytes = Combine(arrayBytes, currentByte);
                 return arrayBytes;
             }
 
@@ -312,102 +327,119 @@ namespace DizzyRPC
                 var arrayBytes = BitConverter.GetBytes(arr.Length);
                 foreach (var val in arr) arrayBytes = Combine(arrayBytes, Encode(val));
             }
+
             if (type == typeof(byte[]))
             {
                 var arr = (byte[])o;
                 var arrayBytes = BitConverter.GetBytes(arr.Length);
                 foreach (var val in arr) arrayBytes = Combine(arrayBytes, Encode(val));
             }
+
             if (type == typeof(short[]))
             {
                 var arr = (short[])o;
                 var arrayBytes = BitConverter.GetBytes(arr.Length);
                 foreach (var val in arr) arrayBytes = Combine(arrayBytes, Encode(val));
             }
-            if (type == typeof(ushort[])) 
+
+            if (type == typeof(ushort[]))
             {
                 var arr = (ushort[])o;
                 var arrayBytes = BitConverter.GetBytes(arr.Length);
                 foreach (var val in arr) arrayBytes = Combine(arrayBytes, Encode(val));
             }
+
             if (type == typeof(int[]))
             {
                 var arr = (int[])o;
                 var arrayBytes = BitConverter.GetBytes(arr.Length);
                 foreach (var val in arr) arrayBytes = Combine(arrayBytes, Encode(val));
             }
-            if (type == typeof(uint[])) 
+
+            if (type == typeof(uint[]))
             {
                 var arr = (uint[])o;
                 var arrayBytes = BitConverter.GetBytes(arr.Length);
                 foreach (var val in arr) arrayBytes = Combine(arrayBytes, Encode(val));
             }
-            if (type == typeof(long[])) 
+
+            if (type == typeof(long[]))
             {
                 var arr = (long[])o;
                 var arrayBytes = BitConverter.GetBytes(arr.Length);
                 foreach (var val in arr) arrayBytes = Combine(arrayBytes, Encode(val));
             }
-            if (type == typeof(ulong[])) 
+
+            if (type == typeof(ulong[]))
             {
                 var arr = (ulong[])o;
                 var arrayBytes = BitConverter.GetBytes(arr.Length);
                 foreach (var val in arr) arrayBytes = Combine(arrayBytes, Encode(val));
             }
-            if (type == typeof(float[])) 
+
+            if (type == typeof(float[]))
             {
                 var arr = (float[])o;
                 var arrayBytes = BitConverter.GetBytes(arr.Length);
                 foreach (var val in arr) arrayBytes = Combine(arrayBytes, Encode(val));
             }
-            if (type == typeof(double[])) 
+
+            if (type == typeof(double[]))
             {
                 var arr = (double[])o;
                 var arrayBytes = BitConverter.GetBytes(arr.Length);
                 foreach (var val in arr) arrayBytes = Combine(arrayBytes, Encode(val));
             }
-            if (type == typeof(char[])) 
+
+            if (type == typeof(char[]))
             {
                 var arr = (char[])o;
                 var arrayBytes = BitConverter.GetBytes(arr.Length);
                 foreach (var val in arr) arrayBytes = Combine(arrayBytes, Encode(val));
             }
+
             if (type == typeof(string[]))
             {
                 var arr = (string[])o;
                 var arrayBytes = BitConverter.GetBytes(arr.Length);
                 foreach (var val in arr) arrayBytes = Combine(arrayBytes, Encode(val));
             }
+
             if (type == typeof(Vector2[]))
             {
                 var arr = (Vector2[])o;
                 var arrayBytes = BitConverter.GetBytes(arr.Length);
                 foreach (var val in arr) arrayBytes = Combine(arrayBytes, Encode(val));
             }
+
             if (type == typeof(Vector3[]))
             {
                 var arr = (Vector3[])o;
                 var arrayBytes = BitConverter.GetBytes(arr.Length);
                 foreach (var val in arr) arrayBytes = Combine(arrayBytes, Encode(val));
             }
+
             if (type == typeof(Vector4[]))
             {
                 var arr = (Vector4[])o;
                 var arrayBytes = BitConverter.GetBytes(arr.Length);
                 foreach (var val in arr) arrayBytes = Combine(arrayBytes, Encode(val));
             }
+
             if (type == typeof(Quaternion[]))
             {
                 var arr = (Quaternion[])o;
                 var arrayBytes = BitConverter.GetBytes(arr.Length);
                 foreach (var val in arr) arrayBytes = Combine(arrayBytes, Encode(val));
             }
+
             if (type == typeof(Color[]))
             {
                 var arr = (Color[])o;
                 var arrayBytes = BitConverter.GetBytes(arr.Length);
                 foreach (var val in arr) arrayBytes = Combine(arrayBytes, Encode(val));
             }
+
             if (type == typeof(Color32[]))
             {
                 var arr = (Color32[])o;
@@ -571,6 +603,7 @@ namespace DizzyRPC
         }
 
         #endregion
+
         #region Decode (Arrays)
 
         private bool[] DecodeBooleanArray(byte[] bytes, ref int position)
@@ -578,15 +611,16 @@ namespace DizzyRPC
             int count = DecodeInt32(bytes, ref position);
             bool[] array = new bool[count];
             int i = 0;
-            for(int _byte = 0; i<count&& _byte<count/8+Math.Sign(count%8); _byte++)
+            for (int _byte = 0; i < count && _byte < count / 8 + Math.Sign(count % 8); _byte++)
             {
                 byte b = DecodeByte(bytes, ref position);
                 for (int bit = 0; i < count && bit < 8; bit++)
                 {
-                    array[i++] = (b & 0b1)==0b1;
+                    array[i++] = (b & 0b1) == 0b1;
                     b = (byte)(b >> 1);
                 }
             }
+
             return array;
         }
 
@@ -735,8 +769,13 @@ namespace DizzyRPC
         }
 
         #endregion
+
         #region Generated RPCs (DO NOT EDIT)
-        private void _DecodeRPC(int id, byte[] data) {}
+
+        private void _DecodeRPC(int id, byte[] data)
+        {
+        }
+
         #endregion
     }
 }

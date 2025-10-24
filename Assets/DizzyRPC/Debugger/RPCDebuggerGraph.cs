@@ -1,4 +1,11 @@
-﻿using TMPro;
+﻿/*
+ * Copyright (C) 2025 ThizThizzyDizzu (https://www.thizthizzydizzy.com)
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
+ * If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ */
+
+using TMPro;
 using UdonSharp;
 using UnityEngine;
 using VRC.SDKBase;
@@ -31,7 +38,7 @@ namespace DizzyRPC.Debugger
         private Vector3 MakeVec3(int i, float f)
         {
             if (clampData) f = Mathf.Clamp01(f);
-            return transform.TransformPoint(new Vector3(i / (float)data.Length - .5f+ Random.value/1000f, f - .5f + Random.value/1000f, -trail.widthMultiplier+ Random.value/1000f));
+            return transform.TransformPoint(new Vector3(i / (float)data.Length - .5f + Random.value / 1000f, f - .5f + Random.value / 1000f, -trail.widthMultiplier + Random.value / 1000f));
         }
 
         public void Add(float f)

@@ -1,3 +1,10 @@
+/*
+ * Copyright (C) 2025 ThizThizzyDizzu (https://www.thizthizzydizzy.com)
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
+ * If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ */
+
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -904,7 +911,8 @@ namespace DizzyRPC.Editor
                     values[0] = generator.GetVariable(values[0].Split('|')[1]).Name; // use variable name instead of Guid
                     Debug.Log($"Variable name ended up as: {values[0]}");
                 }
-                if(nodeName=="Set_Variable")
+
+                if (nodeName == "Set_Variable")
                 {
                     // Clear the `sendChange` field, since we don't care about it (and it doesn't like to match up after codegen)
                     values[2] = "";

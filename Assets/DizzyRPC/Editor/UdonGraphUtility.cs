@@ -1,3 +1,10 @@
+/*
+ * Copyright (C) 2025 ThizThizzyDizzu (https://www.thizthizzydizzy.com)
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
+ * If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ */
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -342,6 +349,7 @@ namespace DizzyRPC.Editor
                 inputs[i] = generator.GetNode(guid);
                 if (!string.IsNullOrEmpty(guid) && inputs[i] == null) throw new Exception($"Could not find node {guid}!");
             }
+
             return inputs;
         }
 
@@ -349,12 +357,14 @@ namespace DizzyRPC.Editor
         {
             List<string> flow = new List<string>();
             foreach (var uid in _node.flowUIDs) flow.Add(uid);
-            
+
             foreach (var node in nodes) flow.Add(node.Guid);
-            
+
             _node.flowUIDs = flow.ToArray();
         }
+
         public void InsertFlowTarget(int index, UdonGraphGenNode node) => InsertFlowTarget(index, node.Guid);
+
         public void InsertFlowTarget(int index, string guid)
         {
             List<string> flow = new List<string>();
@@ -362,7 +372,7 @@ namespace DizzyRPC.Editor
 
             while (flow.Count < index) flow.Add(null);
             flow.Insert(index, guid);
-            
+
             _node.flowUIDs = flow.ToArray();
         }
     }

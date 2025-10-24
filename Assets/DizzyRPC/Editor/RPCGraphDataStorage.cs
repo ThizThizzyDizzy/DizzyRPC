@@ -1,3 +1,10 @@
+/*
+ * Copyright (C) 2025 ThizThizzyDizzu (https://www.thizthizzydizzy.com)
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
+ * If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ */
+
 using System;
 using System.Collections.Generic;
 using DizzyRPC.Attribute;
@@ -192,7 +199,7 @@ namespace DizzyRPC.Editor
         public bool requireLowLatency = false;
         public bool ignoreDuplicates = false;
         public RPCSyncMode mode = RPCSyncMode.Automatic;
-        
+
         public string[] parameterTypes;
         public string[] parameterNames;
 
@@ -256,6 +263,7 @@ namespace DizzyRPC.Editor
             {
                 parameterNames[i] = _parameterNames.GetArrayElementAtIndex(i);
             }
+
             parameterTypes = new SerializedProperty[_parameterTypes.arraySize];
             for (int i = 0; i < _parameterTypes.arraySize; i++)
             {
@@ -266,12 +274,12 @@ namespace DizzyRPC.Editor
         public void EnsureParameterCount(int parameterCount)
         {
             if (parameterCount < 0) parameterCount = 0;
-            while(_parameterNames.arraySize<parameterCount)_parameterNames.InsertArrayElementAtIndex(_parameterNames.arraySize);
-            while(_parameterNames.arraySize>parameterCount)_parameterNames.DeleteArrayElementAtIndex(_parameterNames.arraySize-1);
-            
-            while(_parameterTypes.arraySize<parameterCount)_parameterTypes.InsertArrayElementAtIndex(_parameterTypes.arraySize);
-            while(_parameterTypes.arraySize>parameterCount)_parameterTypes.DeleteArrayElementAtIndex(_parameterTypes.arraySize-1);
-            
+            while (_parameterNames.arraySize < parameterCount) _parameterNames.InsertArrayElementAtIndex(_parameterNames.arraySize);
+            while (_parameterNames.arraySize > parameterCount) _parameterNames.DeleteArrayElementAtIndex(_parameterNames.arraySize - 1);
+
+            while (_parameterTypes.arraySize < parameterCount) _parameterTypes.InsertArrayElementAtIndex(_parameterTypes.arraySize);
+            while (_parameterTypes.arraySize > parameterCount) _parameterTypes.DeleteArrayElementAtIndex(_parameterTypes.arraySize - 1);
+
             RefreshParametersList();
         }
     }
