@@ -29,6 +29,7 @@ namespace DizzyRPC.Editor
                 List<UdonGraphGenNode> nodes = new();
                 foreach (var node in _program.graphData.nodes)
                 {
+                    if (node.IsVariable()) continue;
                     nodes.Add(new UdonGraphGenNode(node));
                 }
 
@@ -43,10 +44,8 @@ namespace DizzyRPC.Editor
                 List<UdonGraphGenVariable> variables = new();
                 foreach (var node in _program.graphData.nodes)
                 {
-                    if (node.IsVariable())
-                    {
-                        variables.Add(new UdonGraphGenVariable(node));
-                    }
+                    if (!node.IsVariable()) continue;
+                    variables.Add(new UdonGraphGenVariable(node));
                 }
 
                 return variables.ToArray();
@@ -214,6 +213,16 @@ namespace DizzyRPC.Editor
 
             _program.graphElementData = datas.ToArray();
         }
+
+        public UdonGraphGenNode GetNode(string guid)
+        {
+            return Nodes.FirstOrDefault(n => n.Guid == guid);
+        }
+
+        public UdonGraphGenVariable GetVariable(string guid)
+        {
+            return Variables.FirstOrDefault(n => n.Guid == guid);
+        }
     }
 
     public class UdonGraphGenVariable : UdonGraphGenNode
@@ -253,6 +262,18 @@ namespace DizzyRPC.Editor
     {
         protected readonly UdonNodeData _node;
         public string Guid => _node.uid;
+        public string Name => _node.fullName;
+
+        public string[] Values
+        {
+            get
+            {
+                string[] values = new string[_node.nodeValues.Length];
+                for (int i = 0; i < values.Length; i++) values[i] = _node.nodeValues[i].stringValue;
+                return values;
+            }
+        }
+
         public Vector2 Position => _node.position;
 
         public UdonGraphGenNode(UdonNodeData node)
@@ -302,6 +323,48 @@ namespace DizzyRPC.Editor
             _node.nodeUIDs[i] = default;
             _node.nodeValues[i] = SerializableObjectContainer.Serialize(default);
         }
+
+        public UdonGraphGenNode[] GetFlowTargets(UdonGraphGen generator)
+        {
+            UdonGraphGenNode[] targets = new UdonGraphGenNode[_node.flowUIDs.Length];
+            for (int i = 0; i < targets.Length; i++) targets[i] = generator.GetNode(_node.flowUIDs[i]);
+            return targets;
+        }
+
+        public UdonGraphGenNode[] GetNodeInputs(UdonGraphGen generator)
+        {
+            UdonGraphGenNode[] inputs = new UdonGraphGenNode[_node.nodeUIDs.Length];
+            for (int i = 0; i < inputs.Length; i++)
+            {
+                var guid = _node.nodeUIDs[i];
+                if (guid == null) continue;
+                if (guid.Contains('|')) guid = guid.Split('|')[0];
+                inputs[i] = generator.GetNode(guid);
+                if (!string.IsNullOrEmpty(guid) && inputs[i] == null) throw new Exception($"Could not find node {guid}!");
+            }
+            return inputs;
+        }
+
+        public void AddFlow(params UdonGraphGenNode[] nodes)
+        {
+            List<string> flow = new List<string>();
+            foreach (var uid in _node.flowUIDs) flow.Add(uid);
+            
+            foreach (var node in nodes) flow.Add(node.Guid);
+            
+            _node.flowUIDs = flow.ToArray();
+        }
+        public void InsertFlowTarget(int index, UdonGraphGenNode node) => InsertFlowTarget(index, node.Guid);
+        public void InsertFlowTarget(int index, string guid)
+        {
+            List<string> flow = new List<string>();
+            foreach (var uid in _node.flowUIDs) flow.Add(uid);
+
+            while (flow.Count < index) flow.Add(null);
+            flow.Insert(index, guid);
+            
+            _node.flowUIDs = flow.ToArray();
+        }
     }
 
     public class UdonGraphGenCustomEvent : UdonGraphGenNode
@@ -336,14 +399,6 @@ namespace DizzyRPC.Editor
         public override void Validate()
         {
             if (_node.fullName != "Block") throw new ArgumentException($"Node is not a block event: {_node.fullName}!");
-        }
-
-        public void AddFlow(params UdonGraphGenNode[] nodes)
-        {
-            List<string> flow = new List<string>();
-            foreach (var uid in _node.flowUIDs) flow.Add(uid);
-            foreach (var node in nodes) flow.Add(node.Guid);
-            _node.flowUIDs = flow.ToArray();
         }
     }
 
@@ -450,6 +505,10 @@ namespace DizzyRPC.Editor
             containedElements.Add(element.uid);
             Save();
         }
+
+        public IEnumerable<UdonGraphGenNode> GetContainedNodes(UdonGraphGen generator) => generator.Nodes.Where(Contains);
+
+        public bool Contains(UdonGraphGenNode node) => containedElements.Contains(node.Guid);
     }
 
     [Serializable]

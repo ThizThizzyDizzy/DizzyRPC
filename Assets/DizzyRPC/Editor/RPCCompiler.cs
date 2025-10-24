@@ -621,6 +621,11 @@ namespace DizzyRPC.Editor
         {
             List<string> generatedLines = new();
 
+            if (target == GenerationTarget.Channel && mode != GenerationMode.Build)
+            {
+                generatedLines.Add("private void _DecodeRPC(int id, byte[] data) {}");
+            }
+
             if (mode != GenerationMode.Clean)
             {
                 switch (target)
@@ -632,11 +637,7 @@ namespace DizzyRPC.Editor
                         }
 
                         generatedLines.Add("");
-                        if (mode != GenerationMode.Build)
-                        {
-                            generatedLines.Add("private void _DecodeRPC(int id, byte[] data) {}");
-                            break;
-                        }
+                        if (mode != GenerationMode.Build) break;
 
                         foreach (GeneratedSingleton singleton in generatedSingletons)
                         {
@@ -864,13 +865,139 @@ namespace DizzyRPC.Editor
         private const int NODE_SPACING = NODE_3;
         private const int GRAPH_ROUTER_WIDTH = 1470;
 
+        public class CachedNodeConnection
+        {
+            public readonly int index;
+            public readonly string sourceGroupName;
+            public readonly string sourceGuid;
+            public readonly string sourceName;
+            public readonly string[] sourceValues;
+
+            public readonly string targetGroupName;
+            public readonly string targetGuid;
+            public readonly string targetName;
+            public readonly string[] targetValues;
+
+            public CachedNodeConnection(UdonGraphGen generator, UdonGraphGenNode source, UdonGraphGenNode target, int index)
+            {
+                this.index = index;
+                sourceGroupName = generator.Groups.FirstOrDefault(g => g.Contains(source))?.title;
+                sourceGuid = source?.Guid;
+                sourceName = source?.Name;
+                sourceValues = source?.Values;
+                TweakValues(generator, sourceName, sourceValues);
+
+                targetGroupName = generator.Groups.FirstOrDefault(g => g.Contains(target))?.title;
+                targetGuid = target?.Guid;
+                targetName = target?.Name;
+                targetValues = target?.Values;
+                TweakValues(generator, targetName, targetValues);
+            }
+
+            private void TweakValues(UdonGraphGen generator, string nodeName, string[] values)
+            {
+                if (values == null) return;
+                if (nodeName == "Get_Variable" || nodeName == "Set_Variable")
+                {
+                    // Use variable name instead of Guid, since the Guids change during codegen
+                    Debug.Log($"Changing variable reference Guid {values[0]} to variable name");
+                    values[0] = generator.GetVariable(values[0].Split('|')[1]).Name; // use variable name instead of Guid
+                    Debug.Log($"Variable name ended up as: {values[0]}");
+                }
+                if(nodeName=="Set_Variable")
+                {
+                    // Clear the `sendChange` field, since we don't care about it (and it doesn't like to match up after codegen)
+                    values[2] = "";
+                }
+            }
+
+            public bool SourceMatches(UdonGraphGen generator, UdonGraphGenNode node)
+            {
+                var nodeGroupName = generator.Groups.FirstOrDefault(g => g.Contains(node))?.title;
+                var nodeValues = node.Values;
+                TweakValues(generator, node.Name, nodeValues);
+                Debug.Log($"Checking source match:\n{sourceGroupName}=={nodeGroupName}\n{sourceName}=={node.Name}\n{string.Join(",", sourceValues)}=={string.Join(",", nodeValues)}");
+                return sourceGroupName == nodeGroupName
+                       && sourceName == node.Name
+                       && sourceValues.SequenceEqual(nodeValues);
+            }
+
+            public bool TargetMatches(UdonGraphGen generator, UdonGraphGenNode node)
+            {
+                var nodeGroupName = generator.Groups.FirstOrDefault(g => g.Contains(node))?.title;
+                var nodeValues = node.Values;
+                TweakValues(generator, node.Name, nodeValues);
+                Debug.Log($"Checking target match:\n{targetGroupName}=={nodeGroupName}\n{targetName}=={node.Name}\n{string.Join(",", targetValues)}=={string.Join(",", nodeValues)}");
+                return targetGroupName == nodeGroupName
+                       && targetName == node.Name
+                       && targetValues.SequenceEqual(nodeValues);
+            }
+        }
+
         private static void GenerateRPCs(string guid, UdonGraphProgramAsset program, GenerationMode mode)
         {
             var generator = new UdonGraphGen(program);
 
-            // Cleanup
-            foreach (var g in generator.Groups.Where(g => g.title.StartsWith($"_RPC"))) generator.DeleteGroup(g);
+            List<CachedNodeConnection> nodeConnections = new();
+            List<CachedNodeConnection> flowConnections = new();
+
+            // Cleanup, but remember external connections
+            foreach (var g in generator.Groups.Where(g => g.title.StartsWith($"_RPC")))
+            {
+                List<UdonGraphGenNode> groupNodes = new(g.GetContainedNodes(generator));
+                foreach (var node in groupNodes)
+                {
+                    var nodeInputs = node.GetNodeInputs(generator);
+                    for (var i = 0; i < nodeInputs.Length; i++)
+                    {
+                        var input = nodeInputs[i];
+                        if (input == null) continue;
+                        if (g.Contains(input)) continue; // Don't care about in-group connections
+                        nodeConnections.Add(new(generator, input, node, i));
+                    }
+
+                    var flowTargets = node.GetFlowTargets(generator);
+                    for (var i = 0; i < flowTargets.Length; i++)
+                    {
+                        var target = flowTargets[i];
+                        if (target == null) continue;
+                        if (g.Contains(target)) continue; // Don't care about in-group connections
+                        flowConnections.Add(new(generator, node, target, i));
+                    }
+                }
+
+                foreach (var node in generator.Nodes)
+                {
+                    if (g.Contains(node)) continue;
+                    var nodeInputs = node.GetNodeInputs(generator);
+                    for (var i = 0; i < nodeInputs.Length; i++)
+                    {
+                        var input = nodeInputs[i];
+                        if (input == null) continue;
+                        if (!g.Contains(input)) continue; // Don't care about out-of-group connections
+                        Debug.Log($"[DizzyRPC] and the {i} one is a connection!");
+                        nodeConnections.Add(new(generator, input, node, i));
+                    }
+
+                    var flowTargets = node.GetFlowTargets(generator);
+                    for (var i = 0; i < flowTargets.Length; i++)
+                    {
+                        var target = flowTargets[i];
+                        if (target == null) continue;
+                        if (!g.Contains(target)) continue; // Don't care about out-of-group connections
+                        flowConnections.Add(new(generator, node, target, i));
+                    }
+                }
+
+                generator.DeleteGroup(g);
+            }
+
             foreach (var v in generator.Variables.Where(g => g.Name.StartsWith($"_RPC"))) v.Delete();
+
+            List<(UdonGraphGenNode, int)> restoreFlowOutputs = new();
+            List<UdonGraphGenNode> restoreFlowInputs = new();
+            List<UdonGraphGenNode> restoreNodeOutputs = new();
+            List<(UdonGraphGenNode, int)> restoreNodeInputs = new(1);
 
             if (mode == GenerationMode.Clean)
             {
@@ -908,17 +1035,17 @@ namespace DizzyRPC.Editor
                     {
                         generator.currentGroup = generator.AddGroup($"_RPC_{rpc.methodName}");
 
-                        generator.AddComment("!! GENERATED CODE !!\nDO NOT ADD OR EDIT ANY NODE IN THIS GROUP!\n\nThis is an RPC method. It will run when this RPC is sent by another user.\n1. Connect flow from the event node below.\n2. Use or copy the variables below if needed.\n3. Add your RPC logic.", new(leftX - 500, leftY, 500, NODE_6));
+                        generator.AddComment("!! GENERATED CODE !!\nDO NOT ADD OR EDIT ANY NODE IN THIS GROUP!\n\nThis is an RPC method. It will run when this RPC is sent by another user.\n1. Connect flow from the event node below.\n2. Use the variables below if needed.\n3. Add your RPC logic.", new(leftX - 500, leftY, 500, NODE_6));
                         var leftCommentY = leftY + NODE_7;
 
-                        generator.AddCustomEvent(rpc.GraphMethodName, position: new(leftX, leftY));
+                        restoreFlowOutputs.Add((generator.AddCustomEvent(rpc.GraphMethodName, position: new(leftX, leftY)), 0));
                         leftY += NODE_3;
 
                         Dictionary<GeneratedRPCParameter, UdonGraphGenVariable> graphVariables = new();
                         foreach (var parameter in rpc.methodParameters)
                         {
                             graphVariables[parameter] = generator.AddVariable(parameter.type, $"{parameter.GraphParameterName(rpc)}");
-                            generator.AddGetVariable(graphVariables[parameter], new(leftX, leftY));
+                            restoreNodeOutputs.Add(generator.AddGetVariable(graphVariables[parameter], new(leftX, leftY)));
                             leftY += NODE_1;
                         }
 
@@ -928,11 +1055,12 @@ namespace DizzyRPC.Editor
 
                         generator.currentGroup = generator.AddGroup($"_RPC_SEND_{rpc.methodName}");
 
-                        generator.AddComment("!! GENERATED CODE !!\nDO NOT ADD OR EDIT ANY NODE IN THIS GROUP!\n\nThis is a SEND RPC method. This will send an RPC to another player.\nTo send an RPC:\n1. Connect a VRCPlayerAPI value to the RPC_Target variable below. This is the player that will receive the RPC.\n(Use const null to send to all players)\n2. Connect values to ALL RPC variables below.\n3. Connect flow to the left side of the Block.", new(rightX + 180, rightY + NODE_5, 700, NODE_8));
+                        generator.AddComment("!! GENERATED CODE !!\nDO NOT ADD OR EDIT ANY NODE IN THIS GROUP!\n\nThis is a SEND RPC method. This will send an RPC to another player.\nTo send an RPC:\n1. Connect a VRCPlayerAPI value to the RPC_Target variable.\nThis is the player that will receive the RPC.\n(Use const null to send to all players)\n2. Connect values to ALL RPC variables.\n3. Connect flow to the left side of the Block.", new(rightX + 180, rightY + NODE_5, 700, NODE_8));
                         var rightCommentY = rightY + NODE_9;
 
                         var originalRightY = rightY;
                         var block = generator.AddBlock(position: new(rightX, rightY));
+                        restoreFlowInputs.Add(block);
                         rightY += NODE_BASE + NODE_ROW * (rpc.methodParameters.Count * 2 + 7);
 
                         List<UdonGraphGenNode> flowNodes = new();
@@ -940,11 +1068,13 @@ namespace DizzyRPC.Editor
                         if (rpc.methodParameters.Count > 0)
                         {
                             var sTarget = generator.AddSetVariable(targetVariable, new(rightX, rightY));
+                            restoreNodeInputs.Add((sTarget, 1));
                             flowNodes.Add(sTarget);
                             rightY += NODE_4;
                             for (int i = 0; i < rpc.methodParameters.Count; i++)
                             {
                                 var setValue = generator.AddSetVariable(graphVariables[rpc.methodParameters[i]], new(rightX, rightY));
+                                restoreNodeInputs.Add((setValue, 1));
                                 flowNodes.Add(setValue);
                                 rightY += NODE_4;
                             }
@@ -1046,19 +1176,21 @@ namespace DizzyRPC.Editor
 
                         var routeResultVar = generator.AddVariable<UdonBehaviour>("_RPC_RouteResult");
 
-                        generator.AddCustomEvent("_RPC_RouteRPC", position: new(bottomX, bottomY));
+                        restoreFlowOutputs.Add((generator.AddCustomEvent("_RPC_RouteRPC", position: new(bottomX, bottomY)), 0));
                         bottomY += NODE_3;
 
-                        generator.AddGetVariable(generator.AddVariable<string>("_RPC_Router__id"), new(bottomX, bottomY));
+                        restoreNodeOutputs.Add(generator.AddGetVariable(generator.AddVariable<string>("_RPC_Router__id"), new(bottomX, bottomY)));
                         bottomY += NODE_1;
 
                         bottomX += GRAPH_ROUTER_WIDTH - 500;
                         bottomY = baseBottomY;
 
                         var block = generator.AddBlock(new(bottomX, bottomY));
+                        restoreFlowInputs.Add(block);
                         bottomY += NODE_4;
 
                         var setResult = generator.AddSetVariable(routeResultVar, new(bottomX, bottomY));
+                        restoreNodeInputs.Add((setResult, 1));
                         bottomY += NODE_4;
 
                         bottomY = baseBottomY;
@@ -1092,7 +1224,7 @@ namespace DizzyRPC.Editor
                         float commentWidth = GRAPH_ROUTER_WIDTH - NODE_SPACING - 700;
                         generator.AddComment("!! GENERATED CODE !!\nDO NOT ADD OR EDIT ANY NODE IN THIS GROUP!\n\nThis is a routing function. It must match a routing ID to the corresponding UdonBehavior.", new(baseBottomX + 300, bottomY, commentWidth, NODE_4));
                         bottomY += NODE_4;
-                        generator.AddComment("1. Connect flow from the event on the left to begin routing.\n2. Use or copy the variable on the left for the routing ID.\n3. Add routing logic to match the ID to an UdonBehavior.", new(baseBottomX + 300, bottomY, commentWidth / 2, NODE_5));
+                        generator.AddComment("1. Connect flow from the event on the left to begin routing.\n2. Use the variable on the left for the routing ID.\n3. Add routing logic to match the ID to an UdonBehavior.", new(baseBottomX + 300, bottomY, commentWidth / 2, NODE_5));
                         generator.AddComment("4. Connect the UdonBehavior value to the RouteResult variable on the right.\n5. Connect flow to the block on the right to complete routing.\nDO NOT CONNECT FLOW FROM ANY OTHER SOURCE.", new(baseBottomX + 300 + commentWidth / 2, bottomY, commentWidth / 2, NODE_5));
 
                         bottomX += 250;
@@ -1119,12 +1251,12 @@ namespace DizzyRPC.Editor
                                 generator.currentGroup = generator.AddGroup($"_RPC_HOOK_{hook.methodName}");
 
 
-                                generator.AddCustomEvent(hook.GraphMethodName, position: new(bottomX, bottomY));
+                                restoreFlowOutputs.Add((generator.AddCustomEvent(hook.GraphMethodName, position: new(bottomX, bottomY)), 0));
                                 bottomY += NODE_3;
 
                                 foreach (var parameter in hook.methodParameters)
                                 {
-                                    generator.AddGetVariable(generator.AddVariable(parameter.type, $"{parameter.GraphParameterName(hook)}"), new(bottomX, bottomY));
+                                    restoreNodeOutputs.Add(generator.AddGetVariable(generator.AddVariable(parameter.type, $"{parameter.GraphParameterName(hook)}"), new(bottomX, bottomY)));
                                     bottomY += NODE_1;
                                 }
 
@@ -1132,6 +1264,7 @@ namespace DizzyRPC.Editor
                                 bottomY = baseBottomY;
 
                                 var block = generator.AddBlock(new(bottomX, bottomY));
+                                restoreFlowInputs.Add(block);
                                 bottomY += NODE_4;
 
                                 bottomY = baseBottomY;
@@ -1155,13 +1288,61 @@ namespace DizzyRPC.Editor
                                 float commentWidth = GRAPH_ROUTER_WIDTH - NODE_SPACING - 700;
                                 generator.AddComment("!! GENERATED CODE !!\nDO NOT ADD OR EDIT ANY NODE IN THIS GROUP!\n\nThis is an RPC hook. This will run after an RPC has been received, but before it has run.", new(baseBottomX + 300, bottomY, commentWidth, NODE_4));
                                 bottomY += NODE_4;
-                                generator.AddComment("1. Connect flow from the event on the left to begin the hook.\n2. Use or copy the variables on the left if needed.\n3. Add your custom hook logic.", new(baseBottomX + 300, bottomY, commentWidth / 2, NODE_5));
+                                generator.AddComment("1. Connect flow from the event on the left to begin the hook.\n2. Use the variables on the left if needed.\n3. Add your custom hook logic.", new(baseBottomX + 300, bottomY, commentWidth / 2, NODE_5));
                                 generator.AddComment("4. If you wish to allow the RPC to run, you must connect flow to the block on the right. If flow does not reach this block, the RPC will be cancelled.\nDO NOT CONNECT FLOW FROM ANY OTHER SOURCE.", new(baseBottomX + 300 + commentWidth / 2, bottomY, commentWidth / 2, NODE_5));
 
                                 bottomX += 250;
                                 bottomY = baseBottomY;
                             }
                         }
+                    }
+                }
+            }
+
+            Debug.Log($"[DizzyRPC] Restoring {restoreFlowOutputs.Count} Flow outputs from {flowConnections.Count} connections");
+            foreach (var (node, index) in restoreFlowOutputs)
+            {
+                foreach (var conn in flowConnections)
+                {
+                    if (conn.SourceMatches(generator, node) && conn.index == index)
+                    {
+                        node.InsertFlowTarget(index, conn.targetGuid);
+                    }
+                }
+            }
+
+            Debug.Log($"[DizzyRPC] Restoring {restoreFlowInputs.Count} Flow inputs from {flowConnections.Count} connections");
+            foreach (var node in restoreFlowInputs)
+            {
+                foreach (var conn in flowConnections)
+                {
+                    if (conn.TargetMatches(generator, node))
+                    {
+                        generator.GetNode(conn.sourceGuid).InsertFlowTarget(conn.index, node);
+                    }
+                }
+            }
+
+            Debug.Log($"[DizzyRPC] Restoring {restoreNodeInputs.Count} Node inputs from {nodeConnections.Count} connections");
+            foreach (var (node, index) in restoreNodeInputs)
+            {
+                foreach (var conn in nodeConnections)
+                {
+                    if (conn.TargetMatches(generator, node) && conn.index == index)
+                    {
+                        node.SetValue(index, generator.GetNode(conn.sourceGuid));
+                    }
+                }
+            }
+
+            Debug.Log($"[DizzyRPC] Restoring {restoreNodeOutputs.Count} Node outputs from {nodeConnections.Count} connections");
+            foreach (var node in restoreNodeOutputs)
+            {
+                foreach (var conn in nodeConnections)
+                {
+                    if (conn.SourceMatches(generator, node))
+                    {
+                        generator.GetNode(conn.targetGuid).SetValue(conn.index, node);
                     }
                 }
             }
@@ -1214,9 +1395,7 @@ namespace DizzyRPC.Editor
 
             string fullFile = string.Join("\n", lines);
 
-            string pattern = @".*?\[.*?GenerateRPCs.*?\].*?class.*?({).*";
-
-            Regex regex = new Regex(pattern, RegexOptions.Singleline);
+            Regex regex = new Regex(@"\bclass\b[^{]*({)", RegexOptions.Singleline);
             var match = regex.Match(fullFile);
 
             if (!match.Success || match.Groups.Count <= 1)
