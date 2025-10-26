@@ -151,7 +151,7 @@ namespace DizzyRPC.Editor
                 method = type.GetMethod(methodName, BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance, null, types, null);
                 if (method == null) Debug.LogError($"Method not found: {methodName} of type {type.FullName}");
             }
-            catch (AmbiguousMatchException ame)
+            catch (AmbiguousMatchException _)
             {
                 Debug.LogError($"Ambiguous match for method {methodName} of type {type.FullName}");
                 throw;

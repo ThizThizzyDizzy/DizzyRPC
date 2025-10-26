@@ -178,6 +178,10 @@ namespace DizzyRPC.Editor
                 {
                     anySharpChanges |= GenerateRPCs(type, FindMonoAssetPath(type), GenerationTarget.MethodContainer, mode);
                 }
+                foreach (var type in Assembly.GetAssembly(typeof(RPCMethodAttribute)).GetTypes().Where((type) => type.BaseType !=null && type.BaseType.IsGenericType && type.BaseType.GetGenericTypeDefinition() == typeof(RPCRouter<>)))
+                {
+                    anySharpChanges |= GenerateRPCs(type, FindMonoAssetPath(type), GenerationTarget.Router, mode);
+                }
 
                 foreach (var graph in RPCGraphEditor.graphDataStorage.graphData)
                 {
@@ -853,6 +857,15 @@ namespace DizzyRPC.Editor
                             generatedLines.Add($"}}");
                         }
 
+                        break;
+                    case GenerationTarget.Router:
+                        generatedLines.Add("public UdonBehaviour _RPC_RoutingObject;");
+                        generatedLines.Add("public string _RPC_RouteIdTarget;");
+                        generatedLines.Add("public string _RPC_PostGetId;");
+                        generatedLines.Add("public void _RPC_GetId(){");
+                        generatedLines.Add("    _RPC_RoutingObject.SetProgramVariable(_RPC_RouteIdTarget, _GetId(_RPC_RoutingObject));");
+                        generatedLines.Add("    _RPC_RoutingObject.SendCustomEvent(_RPC_PostGetId);");
+                        generatedLines.Add("}");
                         break;
                     default:
                         throw new Exception("Unrecognized generation mode: " + Enum.GetName(typeof(GenerationTarget), target));
@@ -1616,7 +1629,8 @@ namespace DizzyRPC.Editor
         private enum GenerationTarget
         {
             Channel,
-            MethodContainer
+            MethodContainer,
+            Router
         }
 
         private enum GenerationMode
