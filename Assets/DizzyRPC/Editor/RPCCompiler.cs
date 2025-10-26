@@ -748,7 +748,7 @@ namespace DizzyRPC.Editor
                                     generatedLines.Add($"    {rpc.router.SharpFieldName}.SetProgramVariable(\"_RPC_RouteChannel\", this);");
                                     generatedLines.Add($"    {rpc.router.SharpFieldName}.SetProgramVariable(\"_RPC_RouteTarget\", nameof({rpc.router.SharpRoutedFieldName(rpc)}));");
                                     generatedLines.Add($"    {rpc.router.SharpFieldName}.SetProgramVariable(\"{rpc.routerParameter.GraphParameterName(rpc.router)}\", {rpc.routerParameter.SharpFieldName(rpc)});");
-                                    generatedLines.Add($"    {rpc.router.SharpFieldName}.SendCustomEvent(\"{rpc.router.GraphMethodName}\");");
+                                    generatedLines.Add($"    {rpc.router.SharpFieldName}.SendCustomEvent(\"{rpc.router.GraphRouteMethodName}\");");
                                     generatedLines.Add($"}}");
                                     if (rpc.router != null && rpc.router.routerType == typeof(UdonBehaviour))
                                     {
@@ -796,7 +796,7 @@ namespace DizzyRPC.Editor
                         {
                             foreach (GeneratedRouter router in generatedRouters)
                             {
-                                if (router.routableType == type) generatedLines.Add($"[{typeof(SerializeField).FullName}] private {router.routerType.FullName} _rpc_{router.SharpFieldName};");
+                                if (router.routableType == type) generatedLines.Add($"[{typeof(SerializeField).FullName}] private {router.routerType.FullName} {router.SharpFieldName};");
                             }
                         }
 
@@ -817,14 +817,34 @@ namespace DizzyRPC.Editor
                             generatedLines.Add($"public void _SendRPC{rpc.methodName}({typeof(VRCPlayerApi).FullName} target{rpc.methodParameters.AsSharpMethodParameters(", ")}) {{");
                             if (mode == GenerationMode.Build)
                             {
+                                if (rpc.router != null)
+                                {
+                                    if (rpc.router.routerType == typeof(UdonBehaviour))
+                                    {
+                                        generatedLines.Add($"    _rpc_{rpc.id}_target = target;");
+                                        generatedLines.Add($"    {rpc.router.SharpFieldName}.SetProgramVariable(\"_RPC_PostGetId\", nameof({rpc.router.SharpPostGetIdMethodName(rpc)}));");
+                                        generatedLines.Add($"    {rpc.router.SharpFieldName}.SetProgramVariable(\"_RPC_RouteIdTarget\", nameof({rpc.router.SharpGotIdFieldName(rpc)}));");
+                                        generatedLines.Add($"    {rpc.router.SharpFieldName}.SetProgramVariable(\"_RPC_RoutingObject\", this);");
+                                        generatedLines.Add($"    {rpc.router.SharpFieldName}.SendCustomEvent(\"{rpc.router.GraphGetIdMethodName}\");");
+                                        generatedLines.Add($"}}");
+                                        generatedLines.Add($"private {typeof(VRCPlayerApi).FullName} _rpc_{rpc.id}_target;");
+                                        generatedLines.Add($"public {rpc.routerParameter.SharpParameterType} {rpc.router.SharpGotIdFieldName(rpc)};");
+                                        generatedLines.Add($"public void {rpc.router.SharpPostGetIdMethodName(rpc)}() {{");
+                                        generatedLines.Add($"    var target = _rpc_{rpc.id}_target;");
+                                        generatedLines.Add($"    var p__id = {rpc.router.SharpGotIdFieldName(rpc)};");
+                                    }
+                                    else
+                                    {
+                                        generatedLines.Add($"    var p__id = {rpc.router.SharpFieldName}._GetId(this);");
+                                    }
+                                }
                                 switch (rpc.mode)
                                 {
                                     case RPCSyncMode.Event:
-                                        generatedLines.Add($"    _rpc_manager._SendEvent(target, {typeof(RPCChannel).FullName}.{rpc.SharpIdConstName}{rpc.methodParameters.AsSharpCallParameters(null, ", ")});");
+                                        generatedLines.Add($"    _rpc_manager._SendEvent(target, {typeof(RPCChannel).FullName}.{rpc.SharpIdConstName}{rpc.AllParameters.AsSharpCallParameters(null, ", ")});");
                                         break;
                                     case RPCSyncMode.Variable:
-                                        generatedLines.Add($"    _rpc_manager._SendVariable(target, {typeof(RPCChannel).FullName}.{rpc.SharpIdConstName}, {$"{rpc.ignoreDuplicates}".ToLower()}{rpc.methodParameters.AsSharpCallParameters(null, ", ")});");
-                                        generatedLines.Add($"    if(target==null||target=={typeof(Networking).FullName}.{nameof(Networking.LocalPlayer)}){rpc.methodName}({rpc.methodParameters.AsSharpCallParameters(null)});"); // Ensure local calls are not forgotten for variables
+                                        generatedLines.Add($"    _rpc_manager._SendVariable(target, {typeof(RPCChannel).FullName}.{rpc.SharpIdConstName}, {$"{rpc.ignoreDuplicates}".ToLower()}{rpc.AllParameters.AsSharpCallParameters(null, ", ")});");
                                         break;
                                     default: throw new Exception($"Invalid RPC mode at compile time! ({rpc.mode} - {Enum.GetName(typeof(RPCSyncMode), rpc.mode)})");
                                 }
@@ -907,9 +927,7 @@ namespace DizzyRPC.Editor
                 if (nodeName == "Get_Variable" || nodeName == "Set_Variable")
                 {
                     // Use variable name instead of Guid, since the Guids change during codegen
-                    Debug.Log($"Changing variable reference Guid {values[0]} to variable name");
                     values[0] = generator.GetVariable(values[0].Split('|')[1]).Name; // use variable name instead of Guid
-                    Debug.Log($"Variable name ended up as: {values[0]}");
                 }
 
                 if (nodeName == "Set_Variable")
@@ -924,7 +942,6 @@ namespace DizzyRPC.Editor
                 var nodeGroupName = generator.Groups.FirstOrDefault(g => g.Contains(node))?.title;
                 var nodeValues = node.Values;
                 TweakValues(generator, node.Name, nodeValues);
-                Debug.Log($"Checking source match:\n{sourceGroupName}=={nodeGroupName}\n{sourceName}=={node.Name}\n{string.Join(",", sourceValues)}=={string.Join(",", nodeValues)}");
                 return sourceGroupName == nodeGroupName
                        && sourceName == node.Name
                        && sourceValues.SequenceEqual(nodeValues);
@@ -935,7 +952,6 @@ namespace DizzyRPC.Editor
                 var nodeGroupName = generator.Groups.FirstOrDefault(g => g.Contains(node))?.title;
                 var nodeValues = node.Values;
                 TweakValues(generator, node.Name, nodeValues);
-                Debug.Log($"Checking target match:\n{targetGroupName}=={nodeGroupName}\n{targetName}=={node.Name}\n{string.Join(",", targetValues)}=={string.Join(",", nodeValues)}");
                 return targetGroupName == nodeGroupName
                        && targetName == node.Name
                        && targetValues.SequenceEqual(nodeValues);
@@ -983,7 +999,6 @@ namespace DizzyRPC.Editor
                         var input = nodeInputs[i];
                         if (input == null) continue;
                         if (!g.Contains(input)) continue; // Don't care about out-of-group connections
-                        Debug.Log($"[DizzyRPC] and the {i} one is a connection!");
                         nodeConnections.Add(new(generator, input, node, i));
                     }
 
@@ -1026,7 +1041,7 @@ namespace DizzyRPC.Editor
                 int routerCount = generatedRouters.Count(router => router.routerType == typeof(UdonBehaviour) && router.routerGraphName == program.name); // always 1 or 0, but you never know
                 int hookCount = generatedRPCs.Sum(rpc => rpc.hooks.Count(hook => hook.singleton.type == typeof(UdonBehaviour) && hook.singleton.udonGraphGuid == guid));
 
-                float totalBottomWidth = (routerCount + hookCount) * GRAPH_ROUTER_WIDTH;
+                float totalBottomWidth = (routerCount * 2 + hookCount) * GRAPH_ROUTER_WIDTH;
 
                 float missingWidth = totalBottomWidth - (rightX - (leftX + 240));
                 if (missingWidth > 0)
@@ -1037,10 +1052,21 @@ namespace DizzyRPC.Editor
 
                 bottomX = ((leftX + 240) + rightX) / 2 - totalBottomWidth / 2;
 
+                UdonGraphGenVariable rpcRouterVar = null;
+                UdonGraphGenVariable targetVariable = generator.AddVariable<VRCPlayerApi>($"_RPC_Target");
+                UdonGraphGenVariable routeIdResult = null;
+                
                 foreach (GeneratedRPC rpc in generatedRPCs)
                 {
                     if (rpc.type == typeof(UdonBehaviour) && rpc.graphName == program.name)
                     {
+                        if (rpc.router != null && rpcRouterVar == null)
+                        {
+                            // generate RPC Router variables
+                            rpcRouterVar = generator.AddVariable<UdonBehaviour>($"_RPC_Router");
+                            routeIdResult = generator.AddVariable(rpc.router.idType, $"_RPC_RouteId_Result");
+                        }
+                        
                         generator.currentGroup = generator.AddGroup($"_RPC_{rpc.methodName}");
 
                         generator.AddComment("!! GENERATED CODE !!\nDO NOT ADD OR EDIT ANY NODE IN THIS GROUP!\n\nThis is an RPC method. It will run when this RPC is sent by another user.\n1. Connect flow from the event node below.\n2. Use the variables below if needed.\n3. Add your RPC logic.", new(leftX - 500, leftY, 500, NODE_6));
@@ -1063,32 +1089,94 @@ namespace DizzyRPC.Editor
 
                         generator.currentGroup = generator.AddGroup($"_RPC_SEND_{rpc.methodName}");
 
-                        generator.AddComment("!! GENERATED CODE !!\nDO NOT ADD OR EDIT ANY NODE IN THIS GROUP!\n\nThis is a SEND RPC method. This will send an RPC to another player.\nTo send an RPC:\n1. Connect a VRCPlayerAPI value to the RPC_Target variable.\nThis is the player that will receive the RPC.\n(Use const null to send to all players)\n2. Connect values to ALL RPC variables.\n3. Connect flow to the left side of the Block.", new(rightX + 180, rightY + NODE_5, 700, NODE_8));
-                        var rightCommentY = rightY + NODE_9;
+                        generator.AddComment("!! GENERATED CODE !!\nDO NOT ADD OR EDIT ANY NODE IN THIS GROUP!\n\nThis is a SEND RPC method. This will send an RPC to another player.\nTo send an RPC:\n1. Connect a VRCPlayerAPI value to the RPC_Target variable.\nThis is the player that will receive the RPC.\n(Use const null to send to all players)\n2. Connect values to ALL RPC variables.\n3. Connect flow to the left side of the Block.", new(rightX + 280, rightY + NODE_5, 700, NODE_8));
+                        var rightCommentY = rightY + NODE_5 + NODE_9;
 
+                        var inputRightX = rightX;
+                        var inputRightY = rightY;
                         var originalRightY = rightY;
-                        var block = generator.AddBlock(position: new(rightX, rightY));
-                        restoreFlowInputs.Add(block);
-                        rightY += NODE_BASE + NODE_ROW * (rpc.methodParameters.Count * 2 + 7);
+                        List<UdonGraphGenNode> nodesThatNeedTheRPCRouter = new();
 
-                        List<UdonGraphGenNode> flowNodes = new();
-                        var targetVariable = generator.AddVariable<VRCPlayerApi>($"_RPC_Target");
-                        if (rpc.methodParameters.Count > 0)
+                        // Fetch ID if there's a router
+                        if (rpc.router != null)
                         {
-                            var sTarget = generator.AddSetVariable(targetVariable, new(rightX, rightY));
-                            restoreNodeInputs.Add((sTarget, 1));
-                            flowNodes.Add(sTarget);
-                            rightY += NODE_4;
-                            for (int i = 0; i < rpc.methodParameters.Count; i++)
-                            {
-                                var setValue = generator.AddSetVariable(graphVariables[rpc.methodParameters[i]], new(rightX, rightY));
-                                restoreNodeInputs.Add((setValue, 1));
-                                flowNodes.Add(setValue);
-                                rightY += NODE_4;
-                            }
+                            List<UdonGraphGenNode> routerFlowNodes = new();
+                            
+                            var routerBlock = generator.AddBlock(position: new(rightX, rightY));
+                            inputRightY = rightY + NODE_5;
+                            restoreFlowInputs.Add(routerBlock);
+
+                            rightX += 180;
+
+                            var setRoutingObject = generator.AddMethod<UdonBehaviour>(nameof(UdonBehaviour.SetProgramVariable), new(rightX, rightY), typeof(string), typeof(object));
+                            setRoutingObject.SetValue(1, "_RPC_RoutingObject");
+                            routerFlowNodes.Add(setRoutingObject);
+                            nodesThatNeedTheRPCRouter.Add(setRoutingObject);
+                            // rightY += NODE_4;
+                            var getThisBehavior = generator.AddMethod<GameObject>(nameof(GameObject.GetComponent), new(rightX, rightY), typeof(Type));
+                            setRoutingObject.SetValue(2, getThisBehavior);
+                            // rightY += NODE_3;
+                            var constThis = generator.AddConstThis(new(rightX, rightY));
+                            getThisBehavior.SetValue(0, constThis);
+                            // rightY += NODE_1;
+                            var ubType = generator.AddType<UdonBehaviour>(new(rightX, rightY));
+                            getThisBehavior.SetValue(1, ubType);
+                            // rightY += NODE_1;
+
+                            var setRouteIdTarget = generator.AddMethod<UdonBehaviour>(nameof(UdonBehaviour.SetProgramVariable), new(rightX, rightY), typeof(string), typeof(object));
+                            setRouteIdTarget.SetValue(1, "_RPC_RouteIdTarget");
+                            routerFlowNodes.Add(setRouteIdTarget);
+                            nodesThatNeedTheRPCRouter.Add(setRouteIdTarget);
+                            // rightY += NODE_4;
+
+                            setRouteIdTarget.SetValue(2, generator.AddConst(routeIdResult.Name, new(rightX,rightY)));
+                            // rightY += NODE_1;
+                            
+                            var setRoutePostGetId = generator.AddMethod<UdonBehaviour>(nameof(UdonBehaviour.SetProgramVariable), new(rightX, rightY), typeof(string), typeof(object));
+                            setRoutePostGetId.SetValue(1, "_RPC_PostGetId");
+                            routerFlowNodes.Add(setRoutePostGetId);
+                            nodesThatNeedTheRPCRouter.Add(setRoutePostGetId);
+                            // rightY += NODE_4;
+
+                            setRoutePostGetId.SetValue(2, generator.AddConst($"_RPC_PostGetId_{rpc.methodName}", new(rightX,rightY)));
+                            // rightY += NODE_1;
+                            
+                            var sendRouteEvent = generator.AddMethod<UdonBehaviour>(nameof(UdonBehaviour.SendCustomEvent), new(rightX, rightY), typeof(string));
+                            nodesThatNeedTheRPCRouter.Add(sendRouteEvent);
+                            sendRouteEvent.SetValue(1, "RPC_GetId");
+                            routerFlowNodes.Add(sendRouteEvent);
+                            // rightY += NODE_3;
+                            
+                            routerBlock.AddFlow(routerFlowNodes.ToArray());
+                        }
+                        
+                        var block = generator.AddBlock(position: rpc.router==null? new(inputRightX, inputRightY):new(rightX, rightY));
+                        if (rpc.router == null)
+                        {
+                            restoreFlowInputs.Add(block);
+                            inputRightY += NODE_BASE + NODE_ROW * (rpc.methodParameters.Count * 2 + 7);
+                        }
+                        else
+                        {
+                            var postGetIdEvent = generator.AddCustomEvent($"_RPC_PostGetID_{rpc.methodName}", position: new(rightX, rightY));
+                            postGetIdEvent.AddFlow(block);
                         }
 
-                        rightX += 100;
+                        List<UdonGraphGenNode> flowNodes = new();
+                        if (rpc.methodParameters.Count > 0)
+                        {
+                            var sTarget = generator.AddSetVariable(targetVariable, new(inputRightX, inputRightY));
+                            restoreNodeInputs.Add((sTarget, 1));
+                            flowNodes.Add(sTarget);
+                            inputRightY += NODE_4;
+                            for (int i = 0; i < rpc.methodParameters.Count; i++)
+                            {
+                                var setValue = generator.AddSetVariable(graphVariables[rpc.methodParameters[i]], new(inputRightX, inputRightY));
+                                restoreNodeInputs.Add((setValue, 1));
+                                flowNodes.Add(setValue);
+                                inputRightY += NODE_4;
+                            }
+                        }
 
                         var rightYWas = rightY;
                         rightY = originalRightY;
@@ -1152,6 +1240,7 @@ namespace DizzyRPC.Editor
                         }
 
                         flowNodes.Add(sendCustomEvent);
+                        
                         block.AddFlow(flowNodes.ToArray());
 
                         // rightY += NODE_3;
@@ -1161,11 +1250,22 @@ namespace DizzyRPC.Editor
                         foreach (var node in nodesThatNeedTheRPCManager) node.SetValue(0, rpcManagerGet);
                         // rightY += NODE_1;
 
+                        if (rpc.router != null)
+                        {
+                            var rpcRouterGet = generator.AddGetVariable(rpcRouterVar, new(rightX, rightY));
+                            foreach (var node in nodesThatNeedTheRPCRouter) node.SetValue(0, rpcRouterGet);
+                            //
+                            rightY += NODE_1;
+                        }
+
                         rightY = rightYWas;
 
                         if (rightCommentY > rightY) rightY = rightCommentY;
+                        if (originalRightY > rightY) rightY = originalRightY;
+                        if (inputRightY > rightY) rightY = inputRightY;
 
                         rightY += NODE_SPACING;
+                        rightX = inputRightX;
                     }
                 }
 
@@ -1175,68 +1275,137 @@ namespace DizzyRPC.Editor
                 {
                     if (router.routerType == typeof(UdonBehaviour) && router.routerGraphName == program.name)
                     {
-                        bottomX += NODE_SPACING;
+                        // Routing (ID -> Object)
+                        {
+                            bottomX += NODE_SPACING;
 
-                        var baseBottomY = bottomY;
-                        var baseBottomX = bottomX;
+                            var baseBottomY = bottomY;
+                            var baseBottomX = bottomX;
 
-                        generator.currentGroup = generator.AddGroup($"_RPC_ROUTER");
+                            generator.currentGroup = generator.AddGroup($"_RPC_ROUTER");
 
-                        var routeResultVar = generator.AddVariable<UdonBehaviour>("_RPC_RouteResult");
+                            var routeResultVar = generator.AddVariable<UdonBehaviour>("_RPC_RouteResult");
 
-                        restoreFlowOutputs.Add((generator.AddCustomEvent("_RPC_RouteRPC", position: new(bottomX, bottomY)), 0));
-                        bottomY += NODE_3;
+                            restoreFlowOutputs.Add((generator.AddCustomEvent($"{router.GraphRouteMethodName}", position: new(bottomX, bottomY)), 0));
+                            bottomY += NODE_3;
 
-                        restoreNodeOutputs.Add(generator.AddGetVariable(generator.AddVariable<string>("_RPC_Router__id"), new(bottomX, bottomY)));
-                        bottomY += NODE_1;
+                            restoreNodeOutputs.Add(generator.AddGetVariable(generator.AddVariable(router.idType, "_RPC_Router__id"), new(bottomX, bottomY)));
+                            bottomY += NODE_1;
 
-                        bottomX += GRAPH_ROUTER_WIDTH - 500;
-                        bottomY = baseBottomY;
+                            bottomX += GRAPH_ROUTER_WIDTH - 500;
+                            bottomY = baseBottomY;
 
-                        var block = generator.AddBlock(new(bottomX, bottomY));
-                        restoreFlowInputs.Add(block);
-                        bottomY += NODE_4;
+                            var block = generator.AddBlock(new(bottomX, bottomY));
+                            restoreFlowInputs.Add(block);
+                            bottomY += NODE_4;
 
-                        var setResult = generator.AddSetVariable(routeResultVar, new(bottomX, bottomY));
-                        restoreNodeInputs.Add((setResult, 1));
-                        bottomY += NODE_4;
+                            var setResult = generator.AddSetVariable(routeResultVar, new(bottomX, bottomY));
+                            restoreNodeInputs.Add((setResult, 1));
+                            bottomY += NODE_4;
 
-                        bottomY = baseBottomY;
-                        bottomX += 100;
+                            bottomY = baseBottomY;
+                            bottomX += 100;
 
-                        var postRouteTarget = generator.AddMethod<UdonBehaviour>(nameof(UdonBehaviour.SetProgramVariable), new(bottomX, bottomY), typeof(string), typeof(object));
-                        // bottomY += NODE_4;
-                        var routeTarget = generator.AddGetVariable(generator.AddVariable<string>("_RPC_RouteTarget"), new(bottomX, bottomY));
-                        // bottomY += NODE_1;
-                        postRouteTarget.SetValue(1, routeTarget);
+                            var postRouteTarget = generator.AddMethod<UdonBehaviour>(nameof(UdonBehaviour.SetProgramVariable), new(bottomX, bottomY), typeof(string), typeof(object));
+                            // bottomY += NODE_4;
+                            var routeTarget = generator.AddGetVariable(generator.AddVariable<string>("_RPC_RouteTarget"), new(bottomX, bottomY));
+                            // bottomY += NODE_1;
+                            postRouteTarget.SetValue(1, routeTarget);
 
-                        var getResult = generator.AddGetVariable(routeResultVar, new(bottomX, bottomY));
-                        postRouteTarget.SetValue(2, getResult);
-                        // bottomY += NODE_1;
+                            var getResult = generator.AddGetVariable(routeResultVar, new(bottomX, bottomY));
+                            postRouteTarget.SetValue(2, getResult);
+                            // bottomY += NODE_1;
 
-                        var postRouteEvent = generator.AddMethod<UdonBehaviour>(nameof(UdonBehaviour.SendCustomEvent), new(bottomX, bottomY), typeof(string));
-                        // bottomY += NODE_3;
-                        var postRoute = generator.AddGetVariable(generator.AddVariable<string>("_RPC_PostRoute"), new(bottomX, bottomY));
-                        // bottomY += NODE_1;
-                        postRouteEvent.SetValue(1, postRoute);
+                            var postRouteEvent = generator.AddMethod<UdonBehaviour>(nameof(UdonBehaviour.SendCustomEvent), new(bottomX, bottomY), typeof(string));
+                            // bottomY += NODE_3;
+                            var postRoute = generator.AddGetVariable(generator.AddVariable<string>("_RPC_PostRoute"), new(bottomX, bottomY));
+                            // bottomY += NODE_1;
+                            postRouteEvent.SetValue(1, postRoute);
 
-                        block.AddFlow(setResult, postRouteTarget, postRouteEvent);
+                            block.AddFlow(setResult, postRouteTarget, postRouteEvent);
 
-                        var routeChannel = generator.AddGetVariable(generator.AddVariable<UdonBehaviour>("_RPC_RouteChannel"), new(bottomX, bottomY));
-                        // bottomY += NODE_1;
-                        postRouteTarget.SetValue(0, routeChannel);
-                        postRouteEvent.SetValue(0, routeChannel);
+                            var routeChannel = generator.AddGetVariable(generator.AddVariable<UdonBehaviour>("_RPC_RouteChannel"), new(bottomX, bottomY));
+                            // bottomY += NODE_1;
+                            postRouteTarget.SetValue(0, routeChannel);
+                            postRouteEvent.SetValue(0, routeChannel);
 
-                        bottomY = baseBottomY;
+                            bottomY = baseBottomY;
 
-                        float commentWidth = GRAPH_ROUTER_WIDTH - NODE_SPACING - 700;
-                        generator.AddComment("!! GENERATED CODE !!\nDO NOT ADD OR EDIT ANY NODE IN THIS GROUP!\n\nThis is a routing function. It must match a routing ID to the corresponding UdonBehavior.", new(baseBottomX + 300, bottomY, commentWidth, NODE_4));
-                        bottomY += NODE_4;
-                        generator.AddComment("1. Connect flow from the event on the left to begin routing.\n2. Use the variable on the left for the routing ID.\n3. Add routing logic to match the ID to an UdonBehavior.", new(baseBottomX + 300, bottomY, commentWidth / 2, NODE_5));
-                        generator.AddComment("4. Connect the UdonBehavior value to the RouteResult variable on the right.\n5. Connect flow to the block on the right to complete routing.\nDO NOT CONNECT FLOW FROM ANY OTHER SOURCE.", new(baseBottomX + 300 + commentWidth / 2, bottomY, commentWidth / 2, NODE_5));
+                            float commentWidth = GRAPH_ROUTER_WIDTH - NODE_SPACING - 700;
+                            generator.AddComment("!! GENERATED CODE !!\nDO NOT ADD OR EDIT ANY NODE IN THIS GROUP!\n\nThis is a routing function. It must match a routing ID to the corresponding UdonBehavior.", new(baseBottomX + 300, bottomY, commentWidth, NODE_4));
+                            bottomY += NODE_4;
+                            generator.AddComment("1. Connect flow from the event on the left to begin routing.\n2. Use the variable on the left for the routing ID.\n3. Add routing logic to match the ID to an UdonBehavior.", new(baseBottomX + 300, bottomY, commentWidth / 2, NODE_5));
+                            generator.AddComment("4. Connect the UdonBehavior value to the RouteResult variable on the right.\n5. Connect flow to the block on the right to complete routing.\nDO NOT CONNECT FLOW FROM ANY OTHER SOURCE.", new(baseBottomX + 300 + commentWidth / 2, bottomY, commentWidth / 2, NODE_5));
 
-                        bottomX += 250;
-                        bottomY = baseBottomY;
+                            bottomX += 250;
+                            bottomY = baseBottomY;
+                        }
+                        // GetId (Object -> ID)
+                        {
+                            bottomX += NODE_SPACING;
+
+                            var baseBottomY = bottomY;
+                            var baseBottomX = bottomX;
+
+                            generator.currentGroup = generator.AddGroup($"_RPC_ROUTER_GetId");
+
+                            var getIdResultVar = generator.AddVariable(router.idType, "_RPC_GetIdResult");
+
+                            restoreFlowOutputs.Add((generator.AddCustomEvent($"{router.GraphGetIdMethodName}", position: new(bottomX, bottomY)), 0));
+                            bottomY += NODE_3;
+
+                            var routingObjectVar = generator.AddVariable<UdonBehaviour>("_RPC_RoutingObject");
+                            restoreNodeOutputs.Add(generator.AddGetVariable(routingObjectVar, new(bottomX, bottomY)));
+                            bottomY += NODE_1;
+
+                            bottomX += GRAPH_ROUTER_WIDTH - 500;
+                            bottomY = baseBottomY;
+
+                            var block = generator.AddBlock(new(bottomX, bottomY));
+                            restoreFlowInputs.Add(block);
+                            bottomY += NODE_4;
+
+                            var setResult = generator.AddSetVariable(getIdResultVar, new(bottomX, bottomY));
+                            restoreNodeInputs.Add((setResult, 1));
+                            bottomY += NODE_4;
+
+                            bottomY = baseBottomY;
+                            bottomX += 100;
+
+                            var postRouteTarget = generator.AddMethod<UdonBehaviour>(nameof(UdonBehaviour.SetProgramVariable), new(bottomX, bottomY), typeof(string), typeof(object));
+                            // bottomY += NODE_4;
+                            var routeTarget = generator.AddGetVariable(generator.AddVariable<string>("_RPC_RouteIdTarget"), new(bottomX, bottomY));
+                            // bottomY += NODE_1;
+                            postRouteTarget.SetValue(1, routeTarget);
+
+                            var getIdResult = generator.AddGetVariable(getIdResultVar, new(bottomX, bottomY));
+                            postRouteTarget.SetValue(2, getIdResult);
+                            // bottomY += NODE_1;
+
+                            var postGetIdEvent = generator.AddMethod<UdonBehaviour>(nameof(UdonBehaviour.SendCustomEvent), new(bottomX, bottomY), typeof(string));
+                            // bottomY += NODE_3;
+                            var postGetId = generator.AddGetVariable(generator.AddVariable<string>("_RPC_PostGetId"), new(bottomX, bottomY));
+                            // bottomY += NODE_1;
+                            postGetIdEvent.SetValue(1, postGetId);
+
+                            block.AddFlow(setResult, postRouteTarget, postGetIdEvent);
+
+                            var routingObjectChannel = generator.AddGetVariable(routingObjectVar, new(bottomX, bottomY));
+                            // bottomY += NODE_1;
+                            postRouteTarget.SetValue(0, routingObjectChannel);
+                            postGetIdEvent.SetValue(0, routingObjectChannel);
+
+                            bottomY = baseBottomY;
+
+                            float commentWidth = GRAPH_ROUTER_WIDTH - NODE_SPACING - 700;
+                            generator.AddComment("!! GENERATED CODE !!\nDO NOT ADD OR EDIT ANY NODE IN THIS GROUP!\n\nThis is a routing GetId function. It must match an UdonBehavior to the corresponding routing ID.", new(baseBottomX + 300, bottomY, commentWidth, NODE_4));
+                            bottomY += NODE_4;
+                            generator.AddComment("1. Connect flow from the event on the left to begin routing.\n2. Use the variable on the left for the routing object.\n3. Add routing logic to match the UdonBehavior to an ID.", new(baseBottomX + 300, bottomY, commentWidth / 2, NODE_5));
+                            generator.AddComment("4. Connect the ID value to the GetIdResult variable on the right.\n5. Connect flow to the block on the right to complete routing.\nDO NOT CONNECT FLOW FROM ANY OTHER SOURCE.", new(baseBottomX + 300 + commentWidth / 2, bottomY, commentWidth / 2, NODE_5));
+
+                            bottomX += 250;
+                            bottomY = baseBottomY;
+                        }
                     }
                 }
 
@@ -1307,7 +1476,7 @@ namespace DizzyRPC.Editor
                 }
             }
 
-            Debug.Log($"[DizzyRPC] Restoring {restoreFlowOutputs.Count} Flow outputs from {flowConnections.Count} connections");
+            Debug.Log($"[DizzyRPC] Restoring {restoreFlowInputs.Count} Flow inputs and {restoreFlowOutputs.Count} Flow outputs from {flowConnections.Count} connections");
             foreach (var (node, index) in restoreFlowOutputs)
             {
                 foreach (var conn in flowConnections)
@@ -1319,7 +1488,6 @@ namespace DizzyRPC.Editor
                 }
             }
 
-            Debug.Log($"[DizzyRPC] Restoring {restoreFlowInputs.Count} Flow inputs from {flowConnections.Count} connections");
             foreach (var node in restoreFlowInputs)
             {
                 foreach (var conn in flowConnections)
@@ -1331,7 +1499,7 @@ namespace DizzyRPC.Editor
                 }
             }
 
-            Debug.Log($"[DizzyRPC] Restoring {restoreNodeInputs.Count} Node inputs from {nodeConnections.Count} connections");
+            Debug.Log($"[DizzyRPC] Restoring {restoreNodeInputs.Count} Node inputs and {restoreNodeOutputs.Count} Node outputs from {nodeConnections.Count} connections");
             foreach (var (node, index) in restoreNodeInputs)
             {
                 foreach (var conn in nodeConnections)
@@ -1343,7 +1511,6 @@ namespace DizzyRPC.Editor
                 }
             }
 
-            Debug.Log($"[DizzyRPC] Restoring {restoreNodeOutputs.Count} Node outputs from {nodeConnections.Count} connections");
             foreach (var node in restoreNodeOutputs)
             {
                 foreach (var conn in nodeConnections)
@@ -1475,10 +1642,14 @@ namespace DizzyRPC.Editor
             public Type routableType;
             public string routableGraphName;
             public Type idType;
-            public string SharpFieldName => $"router_{id}";
-            public string GraphMethodName => $"_RPC_RouteRPC";
+            public string SharpFieldName => $"_rpc_router_{id}";
+            public string GraphRouteMethodName => $"_RPC_RouteRPC";
+            public string GraphGetIdMethodName => $"_RPC_GetId";
+            public string SharpGetIdMethodName => GraphGetIdMethodName;
             public string SharpRoutedFieldName(GeneratedRPC rpc) => $"rpc_{rpc.id}_routed";
+            public string SharpGotIdFieldName(GeneratedRPC rpc) => $"rpc_{rpc.id}_got_id";
             public string SharpPostRouteMethodName(GeneratedRPC rpc) => $"_RPC_{rpc.id}_PostRoute";
+            public string SharpPostGetIdMethodName(GeneratedRPC rpc) => $"_RPC_{rpc.id}_PostGetId";
         }
 
         public class GeneratedRPC

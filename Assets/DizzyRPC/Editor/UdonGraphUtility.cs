@@ -176,6 +176,11 @@ namespace DizzyRPC.Editor
             node.SetValue(0, value, type);
             return node;
         }
+        public UdonGraphGenNode AddConstThis(Vector2? position = null)
+        {
+            var node = AddNode($"Const_This", 1, position);
+            return node;
+        }
 
         public UdonGraphGenGroup AddGroup(string name)
         {

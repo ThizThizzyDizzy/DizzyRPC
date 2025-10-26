@@ -12,9 +12,9 @@ namespace DizzyRPC.Editor
 {
     public class RPCCompilerSettings : EditorWindow
     {
-        public static bool AutoRecompileInEditor { get => EditorPrefs.GetBool("DizzyRPC_AutoRebuildEditor", true); set => EditorPrefs.SetBool("DizzyRPC_AutoRebuildEditor", value); }
-        public static bool AutoRecompileForPlayMode { get => EditorPrefs.GetBool("DizzyRPC_AutoRecompileForPlayMode", true); set => EditorPrefs.SetBool("DizzyRPC_AutoRecompileForPlayMode", value); }
-        public static bool AutoRecompileOnBuild { get => EditorPrefs.GetBool("DizzyRPC_AutoRecompileOnBuild", true); set => EditorPrefs.SetBool("DizzyRPC_AutoRecompileOnBuild", value); }
+        public static bool AutoRecompileInEditor { get => EditorPrefs.GetBool("DizzyRPC_AutoRebuildEditor", false); set => EditorPrefs.SetBool("DizzyRPC_AutoRebuildEditor", value); }
+        public static bool AutoRecompileForPlayMode { get => EditorPrefs.GetBool("DizzyRPC_AutoRecompileForPlayMode", false); set => EditorPrefs.SetBool("DizzyRPC_AutoRecompileForPlayMode", value); }
+        public static bool AutoRecompileOnBuild { get => EditorPrefs.GetBool("DizzyRPC_AutoRecompileOnBuild", false); set => EditorPrefs.SetBool("DizzyRPC_AutoRecompileOnBuild", value); }
 
         [MenuItem("Tools/DizzyRPC/Settings")]
         public static void ShowWindow()
