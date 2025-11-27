@@ -268,6 +268,10 @@ namespace DizzyRPC.Editor
                 {
                     if (_node.fullName == $"Variable_{type.FullName.Replace(".", "")}") return type;
                 }
+                foreach (var type in Assembly.GetAssembly(typeof(int)).GetTypes())
+                {
+                    if (_node.fullName == $"Variable_{type.FullName.Replace(".", "")}") return type;
+                }
 
                 throw new Exception($"Could not find type for variable: {_node.fullName}!");
             }
