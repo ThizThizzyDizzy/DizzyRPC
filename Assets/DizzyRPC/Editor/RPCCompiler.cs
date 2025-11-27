@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2025 ThizThizzyDizzu (https://www.thizthizzydizzy.com)
+ * Copyright (C) 2025 ThizThizzyDizzy (https://www.thizthizzydizzy.com)
  *
  * This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
  * If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
@@ -1290,7 +1290,7 @@ namespace DizzyRPC.Editor
                         var createList = generator.AddConstructor<DataList>(new(rightX, rightY));
                         // rightY += NODE_1;
 
-                        var saveList = generator.AddSetVariable(buildParamsVariable, new(rightX,rightY));
+                        var saveList = generator.AddSetVariable(buildParamsVariable, new(rightX, rightY));
                         saveList.SetValue(1, createList);
                         flowNodes.Add(saveList);
                         // rightY += NODE_4;
@@ -1302,7 +1302,7 @@ namespace DizzyRPC.Editor
                         {
                             var tokenize = generator.AddConstructor<DataToken>(new(rightX, rightY), routeIdResult.Type.ToDataTokenInputType());
                             // rightY += NODE_2;
-                            
+
                             var addValue = generator.AddMethod<DataList>(nameof(DataList.Add), new(rightX, rightY), typeof(DataToken));
                             addValue.SetValue(0, readList);
                             addValue.SetValue(1, tokenize);

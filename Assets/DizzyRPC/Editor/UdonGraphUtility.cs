@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2025 ThizThizzyDizzu (https://www.thizthizzydizzy.com)
+ * Copyright (C) 2025 ThizThizzyDizzy (https://www.thizthizzydizzy.com)
  *
  * This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
  * If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
@@ -197,6 +197,7 @@ namespace DizzyRPC.Editor
             node.SetValue(0, value, type);
             return node;
         }
+
         public UdonGraphGenNode AddConstThis(Vector2? position = null)
         {
             var node = AddNode($"Const_This", 1, position);
@@ -268,6 +269,7 @@ namespace DizzyRPC.Editor
                 {
                     if (_node.fullName == $"Variable_{type.FullName.Replace(".", "")}") return type;
                 }
+
                 foreach (var type in Assembly.GetAssembly(typeof(int)).GetTypes())
                 {
                     if (_node.fullName == $"Variable_{type.FullName.Replace(".", "")}") return type;
@@ -495,12 +497,14 @@ namespace DizzyRPC.Editor
             if (type == typeof(UdonBehaviour)) type = typeof(IUdonEventReceiver); // This is what VRChat uses for UdonBehavior variables
             return type.FullName.Replace(".", "").Replace("[]", "Array");
         }
+
         public static Type ToDataTokenInputType(this Type type)
         {
             foreach (var constructor in typeof(DataToken).GetConstructors())
             {
                 if (constructor.GetParameters().Length == 1 && constructor.GetParameters()[0].ParameterType == type) return type;
             }
+
             return typeof(object);
         }
 

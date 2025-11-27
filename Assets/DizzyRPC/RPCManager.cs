@@ -1,5 +1,5 @@
 ﻿/*
- * Copyright (C) 2025 ThizThizzyDizzu (https://www.thizthizzydizzy.com)
+ * Copyright (C) 2025 ThizThizzyDizzy (https://www.thizthizzydizzy.com)
  *
  * This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
  * If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
@@ -93,9 +93,10 @@ namespace DizzyRPC
         {
             _SendEvent(_graph_target, _graph_id, ToObjectArray(_graph_parameters));
         }
+
         public void _Graph_SendVariable()
         {
-            _SendVariable(_graph_target, _graph_id, false, ToObjectArray(_graph_parameters));//TODO ignoreDuplicates
+            _SendVariable(_graph_target, _graph_id, false, ToObjectArray(_graph_parameters)); //TODO ignoreDuplicates
         }
 
         private object[] ToObjectArray(DataList list)
@@ -105,6 +106,7 @@ namespace DizzyRPC
             for (int i = 0; i < list.Count; i++) arr[i] = ExtractValue(list[i]);
             return arr;
         }
+
         private object ExtractValue(DataToken token)
         {
             switch (token.TokenType)
