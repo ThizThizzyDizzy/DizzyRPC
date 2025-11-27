@@ -773,7 +773,7 @@ namespace DizzyRPC
         #endregion
 
         #region Generated RPCs (DO NOT EDIT)
-        private void _DecodeRPC(int id, byte[] data) {}
+        private void _DecodeRPC(ushort id, byte[] data) {}
         #endregion
     }
 }

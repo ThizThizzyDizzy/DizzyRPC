@@ -725,6 +725,12 @@ namespace DizzyRPC.Editor
         {
             List<string> generatedLines = new();
 
+            if (mode == GenerationMode.Clean && target == GenerationTarget.Channel)
+            {
+                // prevent compile error when removing all code
+                generatedLines.Add("private void _DecodeRPC(ushort id, byte[] data) {}");
+            }
+
             if (mode != GenerationMode.Clean)
             {
                 switch (target)
