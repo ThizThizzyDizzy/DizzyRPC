@@ -10,6 +10,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using UnityEngine;
+using VRC.SDK3.Data;
 using VRC.Udon;
 using VRC.Udon.Common.Interfaces;
 using VRC.Udon.Editor.ProgramSources.UdonGraphProgram;
@@ -158,6 +159,26 @@ namespace DizzyRPC.Editor
             }
 
             var node = AddNode($"{type.ToUdonGraphName()}.{method.ToUdonGraphName()}", method.GetParameters().Length + (method.IsStatic ? 0 : 1), position);
+            return node;
+        }
+
+        public UdonGraphGenNode AddConstructor<T>(Vector2? position = null, params Type[] types) => AddConstructor(typeof(T), position, types);
+
+        public UdonGraphGenNode AddConstructor(Type type, Vector2? position = null, params Type[] types)
+        {
+            ConstructorInfo constructor;
+            try
+            {
+                constructor = type.GetConstructor(BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance, null, types, null);
+                if (constructor == null) Debug.LogError($"Constructor not found: of type {type.FullName}");
+            }
+            catch (AmbiguousMatchException _)
+            {
+                Debug.LogError($"Ambiguous match for constructor of type {type.FullName}");
+                throw;
+            }
+
+            var node = AddNode($"{type.ToUdonGraphName()}.{constructor.ToUdonGraphName()}", constructor.GetParameters().Length + (constructor.IsStatic ? 0 : 1), position);
             return node;
         }
 
@@ -470,12 +491,27 @@ namespace DizzyRPC.Editor
             if (type == typeof(UdonBehaviour)) type = typeof(IUdonEventReceiver); // This is what VRChat uses for UdonBehavior variables
             return type.FullName.Replace(".", "").Replace("[]", "Array");
         }
+        public static Type ToDataTokenInputType(this Type type)
+        {
+            foreach (var constructor in typeof(DataToken).GetConstructors())
+            {
+                if (constructor.GetParameters().Length == 1 && constructor.GetParameters()[0].ParameterType == type) return type;
+            }
+            return typeof(object);
+        }
 
         public static string ToUdonGraphName(this MethodInfo method)
         {
             List<string> parameters = new();
             foreach (var param in method.GetParameters()) parameters.Add(param.ParameterType.ToUdonGraphName());
             return $"__{method.Name}__{string.Join("_", parameters)}__{method.ReturnType.ToUdonGraphName()}";
+        }
+
+        public static string ToUdonGraphName(this ConstructorInfo constructor)
+        {
+            List<string> parameters = new();
+            foreach (var param in constructor.GetParameters()) parameters.Add(param.ParameterType.ToUdonGraphName());
+            return $"__ctor__{string.Join("_", parameters)}__{constructor.DeclaringType.ToUdonGraphName()}";
         }
     }
 

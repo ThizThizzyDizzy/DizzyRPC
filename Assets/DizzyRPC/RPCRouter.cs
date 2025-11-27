@@ -22,14 +22,5 @@ namespace DizzyRPC
     {
         public abstract UdonBehaviour _Route(I id);
         public abstract I _GetId(UdonBehaviour routedObject);
-
-        public UdonBehaviour _RPC_RoutingObject;
-        public string _RPC_RouteIdTarget;
-        public string _RPC_PostGetId;
-        public void _RPC_GetId()
-        {
-            _RPC_RoutingObject.SetProgramVariable(_RPC_RouteIdTarget, _GetId(_RPC_RoutingObject));
-            _RPC_RoutingObject.SendCustomEvent(_RPC_PostGetId);
-        }
     }
 }

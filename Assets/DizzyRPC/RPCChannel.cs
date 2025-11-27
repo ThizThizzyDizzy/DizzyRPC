@@ -116,8 +116,8 @@ namespace DizzyRPC
                 rpcBytes
             );
 
-            string data = "";
-            foreach (var b in rpcBytes) data += $" {b}";
+            // string data = "";
+            // foreach (var b in rpcBytes) data += $" {b}";
             // Debug.Log($"Appending RPC Data: {rpcBytes.Length} - [{data.Trim()}] (Should be index {rpcIndex}, length {rpcBytes.Length - 16}, player {(target == null ? -1 : target.playerId)}, id {id}, parameters)");
 
             rpcData = Combine(rpcData, rpcBytes);

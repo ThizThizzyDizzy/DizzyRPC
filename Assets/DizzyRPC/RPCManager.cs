@@ -6,6 +6,7 @@
  */
 
 using UdonSharp;
+using VRC.SDK3.Data;
 using VRC.SDKBase;
 using VRRefAssist;
 
@@ -21,6 +22,7 @@ namespace DizzyRPC
 
         public void _SendEvent(VRCPlayerApi target, ushort id, params object[] parameters)
         {
+            // Debug.Log("[RPCManager] Sending Event of id " + id + " with " + parameters.Length + " parameters!");
             if (target == null)
             {
                 foreach (var player in VRCPlayerApi.GetPlayers(new VRCPlayerApi[VRCPlayerApi.GetPlayerCount()]))
@@ -85,21 +87,62 @@ namespace DizzyRPC
 
         public VRCPlayerApi _graph_target;
         public ushort _graph_id;
-        public object[] _graph_parameters;
+        public DataList _graph_parameters;
 
         public void _Graph_SendEvent()
         {
-            _SendEvent(_graph_target, _graph_id, _graph_parameters);
+            _SendEvent(_graph_target, _graph_id, ToObjectArray(_graph_parameters));
+        }
+        public void _Graph_SendVariable()
+        {
+            _SendVariable(_graph_target, _graph_id, false, ToObjectArray(_graph_parameters));//TODO ignoreDuplicates
         }
 
-        public void _Graph_SendVariable(VRCPlayerApi target, ushort id, bool ignoreDuplicates, params object[] parameters)
+        private object[] ToObjectArray(DataList list)
         {
-            foreach (var playerObject in Networking.LocalPlayer.GetPlayerObjects())
+            if (list == null) return new object[0];
+            object[] arr = new object[list.Count];
+            for (int i = 0; i < list.Count; i++) arr[i] = ExtractValue(list[i]);
+            return arr;
+        }
+        private object ExtractValue(DataToken token)
+        {
+            switch (token.TokenType)
             {
-                if (!Utilities.IsValid(playerObject)) continue;
-                var chan = playerObject.GetComponentInChildren<RPCChannel>();
-                if (!Utilities.IsValid(chan)) continue;
-                chan.SendVariable(target, id, ignoreDuplicates, parameters);
+                case TokenType.Null:
+                    return null;
+                case TokenType.Boolean:
+                    return token.Boolean;
+                case TokenType.SByte:
+                    return token.SByte;
+                case TokenType.Byte:
+                    return token.Byte;
+                case TokenType.Short:
+                    return token.Short;
+                case TokenType.UShort:
+                    return token.UShort;
+                case TokenType.Int:
+                    return token.Int;
+                case TokenType.UInt:
+                    return token.UInt;
+                case TokenType.Long:
+                    return token.Long;
+                case TokenType.ULong:
+                    return token.ULong;
+                case TokenType.Float:
+                    return token.Float;
+                case TokenType.Double:
+                    return token.Double;
+                case TokenType.String:
+                    return token.String;
+                case TokenType.DataList:
+                    return token.DataList;
+                case TokenType.DataDictionary:
+                    return token.DataDictionary;
+                case TokenType.Reference:
+                    return token.Reference;
+                default:
+                    return null;
             }
         }
     }
