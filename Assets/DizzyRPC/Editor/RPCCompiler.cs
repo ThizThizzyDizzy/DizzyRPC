@@ -671,7 +671,7 @@ namespace DizzyRPC.Editor
                 GeneratedSingleton hookSingleton = null;
                 foreach (var singleton in generatedSingletons)
                 {
-                    if (singleton.type == typeof(UdonBehaviour))
+                    if (singleton.type == typeof(UdonBehaviour) && singleton.udonGraphGuid == graph.guid)
                     {
                         hookSingleton = singleton;
                         break;
