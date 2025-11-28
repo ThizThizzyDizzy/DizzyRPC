@@ -162,7 +162,7 @@ Once the RPCs are compiled, the following sections will be generated in the Udon
 
 ![graph_send](https://github.com/user-attachments/assets/e4a68687-ed37-4885-a200-7bb2f8839c39)
 
-`_RPC_` sections will always be placed on the far-left edge of the graph, and `_RPC_SEND_` sections will always be placed on the far-right edge of the graph. Only the specified notes may be connected to in the specified ways. Any other connections will be lost when RPCs are compiled.
+`_RPC_` sections will always be placed on the far-left edge of the graph, and `_RPC_SEND_` sections will always be placed on the far-right edge of the graph. Only the specified nodes may be connected to in the specified ways. Any other connections will be lost when RPCs are compiled.
 
 #### Routers
 
