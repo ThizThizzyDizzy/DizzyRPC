@@ -48,7 +48,7 @@ A singleton is an object that exists once, and only once. This could be any obje
 using VRRefAssist;
 
 [Singleton]
-public class SomeScript : U#Behavior {
+public class SomeScript : UdonSharpBehavior {
     // something incredibly awesome
 }
 ```
