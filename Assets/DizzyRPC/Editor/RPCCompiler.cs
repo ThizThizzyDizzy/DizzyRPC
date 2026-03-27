@@ -930,11 +930,13 @@ namespace DizzyRPC.Editor
 
                         break;
                     case GenerationTarget.MethodContainer:
-                        generatedLines.Add($"[{typeof(SerializeField).FullName}] private {typeof(RPCManager).FullName} _rpc_manager;");
+                        bool hasABaseType = false;
                         foreach (GeneratedRouter router in generatedRouters)
                         {
-                            if (router.routableType.IsAssignableFrom(type)) generatedLines.Add($"[{typeof(SerializeField).FullName}] private {router.routerType.FullName} {router.SharpFieldName};");
+                            if (router.routableType.IsAssignableFrom(type) && router.routableType != type) hasABaseType = true;
+                            if (router.routableType==type) generatedLines.Add($"[{typeof(SerializeField).FullName}] protected {router.routerType.FullName} {router.SharpFieldName};");
                         }
+                        if(!hasABaseType)generatedLines.Add($"[{typeof(SerializeField).FullName}] protected {typeof(RPCManager).FullName} _rpc_manager;");
 
                         generatedLines.Add("");
 
