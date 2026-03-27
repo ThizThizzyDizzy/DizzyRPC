@@ -449,6 +449,11 @@ namespace DizzyRPC
                 foreach (var val in arr) arrayBytes = Combine(arrayBytes, Encode(val));
             }
 
+            if (type == typeof(VRCPlayerApi))
+            {
+                return Encode(((VRCPlayerApi)o).playerId);
+            }
+
             Debug.LogError($"Could not encode type: {o.GetType().FullName}");
             return null;
         }
@@ -602,6 +607,12 @@ namespace DizzyRPC
             string s = Encoding.UTF8.GetString(bytes, position, length);
             position += length;
             return s;
+        }
+
+        private VRCPlayerApi DecodeVRCPlayerApi(byte[] bytes, ref int position)
+        {
+            int id = DecodeUInt16(bytes, ref position);
+            return VRCPlayerApi.GetPlayerById(id);
         }
 
         #endregion
