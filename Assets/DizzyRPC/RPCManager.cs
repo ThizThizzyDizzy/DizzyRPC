@@ -25,8 +25,10 @@ namespace DizzyRPC
             // Debug.Log("[RPCManager] Sending Event of id " + id + " with " + parameters.Length + " parameters!");
             if (target == null)
             {
+                VRCPlayerApi localPlayer = Networking.LocalPlayer;
                 foreach (var player in VRCPlayerApi.GetPlayers(new VRCPlayerApi[VRCPlayerApi.GetPlayerCount()]))
                 {
+                    if (!RPC_RunLocally[id] && player == localPlayer) continue;
                     foreach (var playerObject in Networking.GetPlayerObjects(player))
                     {
                         if (!Utilities.IsValid(playerObject)) continue;
@@ -147,5 +149,8 @@ namespace DizzyRPC
                     return null;
             }
         }
+        #region Generated RPCs (DO NOT EDIT)
+        private readonly bool[] RPC_RunLocally;
+        #endregion
     }
 }

@@ -193,6 +193,7 @@ namespace DizzyRPC.Editor
     public class RPCGraphMethodData : RPCMethodDefinition
     {
         public string name;
+        public bool runLocally = true;
         public int rateLimitPerSecond = -1;
         public bool enforceSecure = false;
         public bool allowDropping = true;
@@ -203,6 +204,7 @@ namespace DizzyRPC.Editor
         public string[] parameterTypes;
         public string[] parameterNames;
 
+        public bool RunLocally => runLocally;
         public int RateLimitPerSecond => rateLimitPerSecond;
         public bool EnforceSecure => enforceSecure;
         public bool AllowDropping => allowDropping;
@@ -221,6 +223,7 @@ namespace DizzyRPC.Editor
         private readonly SerializedProperty prop;
 
         private readonly SerializedProperty _name;
+        private readonly SerializedProperty _runLocally;
         private readonly SerializedProperty _rateLimitPerSecond;
         private readonly SerializedProperty _enforceSecure;
         private readonly SerializedProperty _allowDropping;
@@ -231,6 +234,7 @@ namespace DizzyRPC.Editor
         private readonly SerializedProperty _parameterTypes;
 
         public string name { get => _name.stringValue; set => _name.stringValue = value; }
+        public bool runLocally { get => _runLocally.boolValue; set => _runLocally.boolValue = value; }
         public int rateLimitPerSecond { get => _rateLimitPerSecond.intValue; set => _rateLimitPerSecond.intValue = value; }
         public bool enforceSecure { get => _enforceSecure.boolValue; set => _enforceSecure.boolValue = value; }
         public bool allowDropping { get => _allowDropping.boolValue; set => _allowDropping.boolValue = value; }
@@ -244,6 +248,7 @@ namespace DizzyRPC.Editor
         {
             this.prop = prop;
             _name = prop.FindPropertyRelative(nameof(RPCGraphMethodData.name));
+            _runLocally = prop.FindPropertyRelative(nameof(RPCGraphMethodData.runLocally));
             _rateLimitPerSecond = prop.FindPropertyRelative(nameof(RPCGraphMethodData.rateLimitPerSecond));
             _enforceSecure = prop.FindPropertyRelative(nameof(RPCGraphMethodData.enforceSecure));
             _allowDropping = prop.FindPropertyRelative(nameof(RPCGraphMethodData.allowDropping));

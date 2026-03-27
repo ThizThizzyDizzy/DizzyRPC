@@ -157,6 +157,7 @@ namespace DizzyRPC.Editor
                     EditorGUILayout.EndHorizontal();
 
                     GUILayout.BeginHorizontal();
+                    method.runLocally = GUILayout.Toggle(method.runLocally, "Run locally when sending to all players.");
                     method.rateLimitPerSecond = GUILayout.Toggle(method.rateLimitPerSecond > -1, "Rate Limit Per second") ? Mathf.Max(0, method.rateLimitPerSecond) : -1;
                     if (method.rateLimitPerSecond > -1) method.rateLimitPerSecond = EditorGUILayout.IntField(method.rateLimitPerSecond);
                     GUILayout.EndHorizontal();

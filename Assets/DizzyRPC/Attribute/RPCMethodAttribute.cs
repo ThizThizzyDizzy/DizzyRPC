@@ -12,6 +12,7 @@ namespace DizzyRPC.Attribute
     [AttributeUsage(AttributeTargets.Method)]
     public class RPCMethodAttribute : System.Attribute, RPCMethodDefinition
     {
+        public bool RunLocally { get; }
         public int RateLimitPerSecond { get; }
         public bool EnforceSecure { get; }
         public bool AllowDropping { get; }
@@ -19,8 +20,9 @@ namespace DizzyRPC.Attribute
         public bool IgnoreDuplicates { get; }
         public RPCSyncMode Mode { get; }
 
-        public RPCMethodAttribute(int rateLimitPerSecond = -1, bool enforceSecure = false, bool allowDropping = true, bool requireLowLatency = false, bool ignoreDuplicates = false, RPCSyncMode mode = RPCSyncMode.Automatic)
+        public RPCMethodAttribute(bool runLocally = true, int rateLimitPerSecond = -1, bool enforceSecure = false, bool allowDropping = true, bool requireLowLatency = false, bool ignoreDuplicates = false, RPCSyncMode mode = RPCSyncMode.Automatic)
         {
+            RunLocally = runLocally;
             RateLimitPerSecond = rateLimitPerSecond;
             EnforceSecure = enforceSecure;
             AllowDropping = allowDropping;

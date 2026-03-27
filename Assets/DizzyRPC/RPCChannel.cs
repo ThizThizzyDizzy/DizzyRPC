@@ -107,7 +107,7 @@ namespace DizzyRPC
                 // Debug.Log($"Encoded RPC Parameter {param} of type {param.GetType().FullName} into {paramBytes.Length} bytes: [{paramData.Trim()}]");
             }
 
-            if (target == null || target == Networking.LocalPlayer) _DecodeRPC(id, rpcBytes); // Ensure local calls are not forgotten, but are still fully processed by debugger & hooks
+            if (target == null || target == Networking.LocalPlayer && RPC_RunLocally[id]) _DecodeRPC(id, rpcBytes); // Ensure local calls are not forgotten, but are still fully processed by debugger & hooks
 
             rpcBytes = Combine(
                 Encode(target == null ? ushort.MaxValue : (ushort)target.playerId),
@@ -784,6 +784,7 @@ namespace DizzyRPC
         #endregion
 
         #region Generated RPCs (DO NOT EDIT)
+        private readonly bool[] RPC_RunLocally;
         private void _DecodeRPC(ushort id, byte[] data) {}
         #endregion
     }

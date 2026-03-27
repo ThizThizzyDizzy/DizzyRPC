@@ -177,6 +177,7 @@ namespace DizzyRPC.Editor
             {
                 AssetDatabase.StartAssetEditing();
 
+                anySharpChanges |= GenerateRPCs(typeof(RPCManager), FindMonoAssetPath(typeof(RPCManager)), GenerationTarget.Manager, mode);
                 anySharpChanges |= GenerateRPCs(typeof(RPCChannel), FindMonoAssetPath(typeof(RPCChannel)), GenerationTarget.Channel, mode);
 
                 foreach (var type in Assembly.GetAssembly(typeof(RPCMethodAttribute)).GetTypes().Where((type) => type.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly).Any((method) => method.GetCustomAttribute<RPCMethodAttribute>() != null)))
@@ -468,7 +469,8 @@ namespace DizzyRPC.Editor
                                 singleton = generatedSingletons[singletonTypes.IndexOf(type)],
                                 type = type,
                                 mode = mode,
-                                ignoreDuplicates = rpcMethod.IgnoreDuplicates
+                                ignoreDuplicates = rpcMethod.IgnoreDuplicates,
+                                runLocally = rpcMethod.RunLocally
                             });
                             generated = true;
                             break;
@@ -499,7 +501,8 @@ namespace DizzyRPC.Editor
                                 router = router,
                                 type = type,
                                 mode = mode,
-                                ignoreDuplicates = rpcMethod.IgnoreDuplicates
+                                ignoreDuplicates = rpcMethod.IgnoreDuplicates,
+                                runLocally = rpcMethod.RunLocally
                             };
                             generatedRPCs.Add(rpc);
                             generated = true;
@@ -559,7 +562,8 @@ namespace DizzyRPC.Editor
                             type = typeof(UdonBehaviour),
                             graphName = program.name,
                             mode = mode,
-                            ignoreDuplicates = method.ignoreDuplicates
+                            ignoreDuplicates = method.ignoreDuplicates,
+                            runLocally = method.RunLocally
                         });
                         generated = true;
                     }
@@ -588,7 +592,8 @@ namespace DizzyRPC.Editor
                                 type = typeof(UdonBehaviour),
                                 graphName = program.name,
                                 mode = mode,
-                                ignoreDuplicates = method.IgnoreDuplicates
+                                ignoreDuplicates = method.IgnoreDuplicates,
+                                runLocally = method.RunLocally
                             };
                             generatedRPCs.Add(rpc);
                             generated = true;
@@ -725,17 +730,42 @@ namespace DizzyRPC.Editor
         {
             List<string> generatedLines = new();
 
-            if (mode == GenerationMode.Clean && target == GenerationTarget.Channel)
+            if (mode == GenerationMode.Clean)
             {
-                // prevent compile error when removing all code
-                generatedLines.Add("private void _DecodeRPC(ushort id, byte[] data) {}");
+                // prevent compile errors when removing all code
+                if (target== GenerationTarget.Channel)
+                {
+                    generatedLines.Add("private void _DecodeRPC(ushort id, byte[] data) {}");
+                }
+                if (target == GenerationTarget.Channel || target == GenerationTarget.Manager)
+                {
+                    generatedLines.Add($"private readonly bool[] RPC_RunLocally;");
+                }
             }
 
             if (mode != GenerationMode.Clean)
             {
                 switch (target)
                 {
+                    case GenerationTarget.Manager:
+                        if (mode == GenerationMode.Build)
+                        {
+                            generatedLines.Add($"private readonly bool[] RPC_RunLocally = new[]{{{string.Join(", ", generatedRPCs.Select(rpc=>rpc.runLocally)).ToLowerInvariant()}}};");
+                        }
+                        else
+                        {
+                            generatedLines.Add($"private readonly bool[] RPC_RunLocally;");
+                        }
+                        break;
                     case GenerationTarget.Channel:
+                        if (mode == GenerationMode.Build)
+                        {
+                            generatedLines.Add($"private readonly bool[] RPC_RunLocally = new[]{{{string.Join(", ", generatedRPCs.Select(rpc=>rpc.runLocally)).ToLowerInvariant()}}};");
+                        }
+                        else
+                        {
+                            generatedLines.Add($"private readonly bool[] RPC_RunLocally;");
+                        }
                         foreach (GeneratedRPC rpc in generatedRPCs)
                         {
                             generatedLines.Add($"public const ushort {rpc.SharpIdConstName} = {rpc.id};");
@@ -1748,6 +1778,7 @@ namespace DizzyRPC.Editor
 
         private enum GenerationTarget
         {
+            Manager,
             Channel,
             MethodContainer,
             Router
@@ -1799,6 +1830,7 @@ namespace DizzyRPC.Editor
             public string graphName;
             public RPCSyncMode mode;
             public bool ignoreDuplicates;
+            public bool runLocally;
             public string TypeName => graphName ?? (isUniqueType ? type.Name : type.FullName).Replace('.', '_');
             public string FullTypeName => graphName ?? type.FullName;
             public string SharpIdConstName => $"RPC_{TypeName}_{methodName}";

@@ -11,6 +11,7 @@ namespace DizzyRPC.Attribute
 {
     public interface RPCMethodDefinition
     {
+        bool RunLocally { get; }
         int RateLimitPerSecond { get; }
         bool EnforceSecure { get; }
         bool AllowDropping { get; }
