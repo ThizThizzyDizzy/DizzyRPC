@@ -509,7 +509,7 @@ namespace DizzyRPC.Editor
 
                     if (generated) continue;
 
-                    throw new Exception($"Could not map RPCs to {method.Name} in {type.Name}!");
+                    throw new Exception($"Could not route RPCs to {method.Name} in {type.Name}! Either create an RPCRouter for {type.Name}, or mark it as a [Singleton].");
                 }
             }
 
@@ -598,7 +598,7 @@ namespace DizzyRPC.Editor
 
                     if (generated) continue;
 
-                    throw new Exception($"Could not map RPCs to {method.name} in {program.name}!");
+                    throw new Exception($"Could not map RPCs to {method.name} in {program.name}! Either create a router for {program.name}, or mark it as a Singleton.");
                 }
             }
 
