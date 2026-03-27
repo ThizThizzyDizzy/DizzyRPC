@@ -794,7 +794,14 @@ namespace DizzyRPC.Editor
                                         generatedLines.Add($"    int _data_position = 0;");
                                         foreach (var param in rpc.AllParameters)
                                         {
-                                            generatedLines.Add($"    {param.SharpFieldName(rpc)} = Decode{param.type.Name.Replace("[]", "Array")}(data, ref _data_position);");
+                                            if (param.type.IsEnum)
+                                            {
+                                                generatedLines.Add($"    {param.SharpFieldName(rpc)} = ({param.type.FullName})DecodeInt32(data, ref _data_position);");
+                                            }
+                                            else
+                                            {
+                                                generatedLines.Add($"    {param.SharpFieldName(rpc)} = Decode{param.type.Name.Replace("[]", "Array")}(data, ref _data_position);");
+                                            }
                                         }
 
                                         break;
@@ -802,7 +809,7 @@ namespace DizzyRPC.Editor
                                         throw new Exception($"Invalid RPCSyncMode at generation time! ({(int)rpc.mode} - {Enum.GetName(typeof(RPCSyncMode), rpc.mode)})");
                                 }
 
-                                generatedLines.Add($"    debugger.{nameof(RPCDebugger._OnReceiveRPC)}({typeof(NetworkCalling).FullName}.{nameof(NetworkCalling.CallingPlayer)}, {rpc.id}{rpc.AllParameters.AsSharpCallParameters(rpc, ", ")});");
+                                generatedLines.Add($"    debugger.{nameof(RPCDebugger._OnReceiveRPC)}({typeof(NetworkCalling).FullName}.{nameof(NetworkCalling.CallingPlayer)}, {rpc.id}{rpc.AllParameters.AsSharpCallParameters(rpc, ", ", safe: true)});");
                                 foreach (var hook in rpc.hooks)
                                 {
                                     if (hook.singleton.type == typeof(UdonBehaviour))
@@ -940,10 +947,10 @@ namespace DizzyRPC.Editor
                                 switch (rpc.mode)
                                 {
                                     case RPCSyncMode.Event:
-                                        generatedLines.Add($"    _rpc_manager._SendEvent(target, {typeof(RPCChannel).FullName}.{rpc.SharpIdConstName}{rpc.AllParameters.AsSharpCallParameters(null, ", ")});");
+                                        generatedLines.Add($"    _rpc_manager._SendEvent(target, {typeof(RPCChannel).FullName}.{rpc.SharpIdConstName}{rpc.AllParameters.AsSharpCallParameters(null, ", ", safe: true)});");
                                         break;
                                     case RPCSyncMode.Variable:
-                                        generatedLines.Add($"    _rpc_manager._SendVariable(target, {typeof(RPCChannel).FullName}.{rpc.SharpIdConstName}, {$"{rpc.ignoreDuplicates}".ToLower()}{rpc.AllParameters.AsSharpCallParameters(null, ", ")});");
+                                        generatedLines.Add($"    _rpc_manager._SendVariable(target, {typeof(RPCChannel).FullName}.{rpc.SharpIdConstName}, {$"{rpc.ignoreDuplicates}".ToLower()}{rpc.AllParameters.AsSharpCallParameters(null, ", ", safe: true)});");
                                         break;
                                     default: throw new Exception($"Invalid RPC mode at compile time! ({rpc.mode} - {Enum.GetName(typeof(RPCSyncMode), rpc.mode)})");
                                 }
@@ -1844,11 +1851,11 @@ namespace DizzyRPC.Editor
             return prefix + string.Join(", ", strs);
         }
 
-        private static string AsSharpCallParameters(this List<GeneratedRPCParameter> parameters, GeneratedRPC rpc, string prefix = "")
+        private static string AsSharpCallParameters(this List<GeneratedRPCParameter> parameters, GeneratedRPC rpc, string prefix = "", bool safe = false)
         {
             if (parameters.Count == 0) return "";
             List<string> strs = new();
-            foreach (var parameter in parameters) strs.Add($"{(rpc == null ? parameter.SharpParameterName : parameter.SharpFieldName(rpc))}");
+            foreach (var parameter in parameters) strs.Add($"{(safe && parameter.type.IsEnum ? "(int)" : "")}{(rpc == null ? parameter.SharpParameterName : parameter.SharpFieldName(rpc))}");
             return prefix + string.Join(", ", strs);
         }
 
