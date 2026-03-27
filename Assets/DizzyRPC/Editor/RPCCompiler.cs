@@ -179,7 +179,7 @@ namespace DizzyRPC.Editor
 
                 anySharpChanges |= GenerateRPCs(typeof(RPCChannel), FindMonoAssetPath(typeof(RPCChannel)), GenerationTarget.Channel, mode);
 
-                foreach (var type in Assembly.GetAssembly(typeof(RPCMethodAttribute)).GetTypes().Where((type) => type.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance).Any((method) => method.GetCustomAttribute<RPCMethodAttribute>() != null)))
+                foreach (var type in Assembly.GetAssembly(typeof(RPCMethodAttribute)).GetTypes().Where((type) => type.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly).Any((method) => method.GetCustomAttribute<RPCMethodAttribute>() != null)))
                 {
                     anySharpChanges |= GenerateRPCs(type, FindMonoAssetPath(type), GenerationTarget.MethodContainer, mode);
                 }
@@ -325,14 +325,14 @@ namespace DizzyRPC.Editor
             // Generate the RPC code
             var assembly = Assembly.GetAssembly(typeof(RPCMethodAttribute));
             List<Type> singletonTypes = new();
-            List<Type> types = new(assembly.GetTypes().Where((t) => t.IsClass && !t.IsAbstract));
+            List<Type> types = new(assembly.GetTypes().Where((t) => t.IsClass));
 
             var graphDataObject = AssetDatabase.LoadAssetAtPath<RPCGraphDataStorage>("Assets/DizzyRPC/RPCGraphData.asset");
 
             // Routable RPC Containers (These must be first to ensure they are set even if compilation fails)
             foreach (var type in types)
             {
-                foreach (var method in type.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance))
+                foreach (var method in type.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly))
                 {
                     var rpcMethod = method.GetCustomAttribute<RPCMethodAttribute>();
                     if (rpcMethod == null) continue;
@@ -427,7 +427,7 @@ namespace DizzyRPC.Editor
             // Singletons & RPCs
             foreach (var type in types)
             {
-                foreach (var method in type.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance))
+                foreach (var method in type.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly))
                 {
                     var rpcMethod = method.GetCustomAttribute<RPCMethodAttribute>();
                     if (rpcMethod == null) continue;
@@ -480,7 +480,7 @@ namespace DizzyRPC.Editor
                     // Check for RPC router
                     foreach (var router in generatedRouters)
                     {
-                        if (router.routableType == type)
+                        if (router.routableType==typeof(UdonBehaviour)?router.routableType==type:router.routableType.IsAssignableFrom(type))
                         {
                             string routedParameterName = "_id";
                             while (parameters.Any(p => p.name == routedParameterName)) routedParameterName = $"_{routedParameterName}";
@@ -605,7 +605,7 @@ namespace DizzyRPC.Editor
             // RPC Hooks
             foreach (var type in types)
             {
-                foreach (var method in type.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance))
+                foreach (var method in type.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly))
                 {
                     var hook = method.GetCustomAttribute<RPCHookAttribute>();
                     if (hook == null) continue;
@@ -850,6 +850,7 @@ namespace DizzyRPC.Editor
 
                                 if (rpc.router != null)
                                 {
+                                    string routedTypeCast = rpc.type == rpc.router.routableType ? "" : $"({rpc.type.FullName})";
                                     if (rpc.router.routerType == typeof(UdonBehaviour))
                                     {
                                         generatedLines.Add($"    {rpc.router.SharpFieldName}.SetProgramVariable(\"_RPC_PostRoute\", nameof({rpc.router.SharpPostRouteMethodName(rpc)}));");
@@ -866,16 +867,16 @@ namespace DizzyRPC.Editor
                                         generatedLines.Add($"public void {rpc.router.SharpPostRouteMethodName(rpc)}() {{");
                                         if (rpc.router.routableType == typeof(UdonBehaviour))
                                         {
-                                            generatedLines.Add($"    var routed = {rpc.router.SharpRoutedFieldName(rpc)};");
+                                            generatedLines.Add($"    var routed = {routedTypeCast}{rpc.router.SharpRoutedFieldName(rpc)};");
                                         }
                                         else
                                         {
-                                            generatedLines.Add($"    var routed = {rpc.router.SharpRoutedFieldName(rpc)}.GetComponent<{rpc.router.routableType.FullName}>();");
+                                            generatedLines.Add($"    var routed = {routedTypeCast}{rpc.router.SharpRoutedFieldName(rpc)}.GetComponent<{rpc.router.routableType.FullName}>();");
                                         }
                                     }
                                     else
                                     {
-                                        generatedLines.Add($"    var routed = {rpc.router.SharpFieldName}._Route({rpc.routerParameter.SharpFieldName(rpc)});");
+                                        generatedLines.Add($"    var routed = {routedTypeCast}{rpc.router.SharpFieldName}._Route({rpc.routerParameter.SharpFieldName(rpc)});");
                                     }
 
                                     if (rpc.router.routableType == typeof(UdonBehaviour))
@@ -902,7 +903,7 @@ namespace DizzyRPC.Editor
                         generatedLines.Add($"[{typeof(SerializeField).FullName}] private {typeof(RPCManager).FullName} _rpc_manager;");
                         foreach (GeneratedRouter router in generatedRouters)
                         {
-                            if (router.routableType == type) generatedLines.Add($"[{typeof(SerializeField).FullName}] private {router.routerType.FullName} {router.SharpFieldName};");
+                            if (router.routableType.IsAssignableFrom(type)) generatedLines.Add($"[{typeof(SerializeField).FullName}] private {router.routerType.FullName} {router.SharpFieldName};");
                         }
 
                         generatedLines.Add("");
@@ -915,9 +916,7 @@ namespace DizzyRPC.Editor
                                 RPCSyncMode.Variable => "Variable",
                                 _ => ""
                             };
-
-                            if (rpc.router != null && rpc.router.routableType != type) continue;
-                            if (rpc.singleton != null && rpc.singleton.type != type) continue;
+                            if (rpc.type != type) continue;
 
                             generatedLines.Add($"public void _SendRPC{rpc.methodName}({typeof(VRCPlayerApi).FullName} target{rpc.methodParameters.AsSharpMethodParameters(", ")}) {{");
                             if (mode == GenerationMode.Build)
