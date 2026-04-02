@@ -6,10 +6,12 @@
  */
 
 using System;
+using JetBrains.Annotations;
 
 namespace DizzyRPC.Attribute
 {
     [AttributeUsage(AttributeTargets.Method)]
+    [MeansImplicitUse]
     public class RPCMethodAttribute : System.Attribute, RPCMethodDefinition
     {
         public bool RunLocally { get; }

@@ -6,11 +6,13 @@
  */
 
 using System;
+using JetBrains.Annotations;
 using VRC.Udon;
 
 namespace DizzyRPC.Attribute
 {
     [AttributeUsage(AttributeTargets.Method)]
+    [MeansImplicitUse]
     public class RPCHookAttribute : System.Attribute
     {
         public readonly Type type;
